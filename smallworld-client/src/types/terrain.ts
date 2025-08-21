@@ -1,3 +1,17 @@
-export type Terrain = 'forest' | 'hill' | 'mountain' | 'water' | 'plains';
+export type Terrain =
+  | 'forest'
+  | 'hill'
+  | 'mountain'
+  | 'plains'
+  | 'swamp'
+  | 'water';
 
-export const TERRAINS: Terrain[] = ['forest', 'hill', 'mountain', 'water', 'plains'];
+export const LAND_TERRAINS: Terrain[] = [
+  'forest',
+  'hill',
+  'mountain',
+  'plains',
+  'swamp',
+];
+
+export const TERRAINS: Terrain[] = [...LAND_TERRAINS, 'water'];

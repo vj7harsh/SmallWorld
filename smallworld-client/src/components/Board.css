@@ -10,11 +10,14 @@
 
 .board-row {
   display: flex;
-  gap: 4px;
+}
+
+.board-row:not(:first-child) {
+  margin-top: -13px; /* overlap to align hex edges */
 }
 
 .board-row:nth-child(even) {
-  margin-left: 32px; /* offset for hex rows */
+  margin-left: 30px; /* half cell width for offset */
 }
 
 .cell {
@@ -56,5 +59,9 @@
 
 .cell.plains {
   background-color: #f0e68c;
+}
+
+.cell.swamp {
+  background-color: #556b2f;
 }
 
