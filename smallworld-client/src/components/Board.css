@@ -1,0 +1,60 @@
+
+.board-container {
+  display: inline-block;
+}
+
+.board {
+  display: flex;
+  flex-direction: column;
+}
+
+.board-row {
+  display: flex;
+  gap: 4px;
+}
+
+.board-row:nth-child(even) {
+  margin-left: 32px; /* offset for hex rows */
+}
+
+.cell {
+  width: 60px;
+  height: 52px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid #333;
+  font-size: 0.8rem;
+  cursor: pointer;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
+.cell.occupied {
+  border: 2px solid gold;
+}
+
+.region-info {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.cell.forest {
+  background-color: #228b22;
+}
+
+.cell.hill {
+  background-color: #cd853f;
+}
+
+.cell.mountain {
+  background-color: #a9a9a9;
+}
+
+.cell.water {
+  background-color: #1e90ff;
+}
+
+.cell.plains {
+  background-color: #f0e68c;
+}
+
