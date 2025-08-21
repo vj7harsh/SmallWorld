@@ -1,0 +1,38 @@
+.board {
+  display: inline-grid;
+  grid-template-columns: repeat(5, 60px);
+  grid-template-rows: repeat(5, 60px);
+  gap: 2px;
+}
+
+.board-row {
+  display: contents;
+}
+
+.cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid #333;
+  font-size: 0.8rem;
+}
+
+.cell.forest {
+  background-color: #228b22;
+}
+
+.cell.hill {
+  background-color: #cd853f;
+}
+
+.cell.mountain {
+  background-color: #a9a9a9;
+}
+
+.cell.water {
+  background-color: #1e90ff;
+}
+
+.cell.plains {
+  background-color: #f0e68c;
+}
