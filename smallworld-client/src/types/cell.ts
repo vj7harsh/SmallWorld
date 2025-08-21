@@ -1,10 +1,8 @@
 import type { Terrain } from "./terrain";
 
-export interface Region {
+export interface Cell {
   id: number;
   terrain: Terrain;
-  cells: [number, number][];
+  regionId: number;
   occupiedBy?: number;
-  neighbors?: number[];
 }
-

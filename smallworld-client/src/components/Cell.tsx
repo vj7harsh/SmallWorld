@@ -1,20 +1,20 @@
-import React from 'react';
-import './Board.css';
-import type { Terrain } from '../types/terrain';
+import React from "react";
+import "../components/Board.css";
+import type { Terrain } from "../types/terrain";
 
 interface CellProps {
   terrain: Terrain;
-  occupied: boolean;
+  occupiedBy?: number;
   onClick: () => void;
 }
 
-const Cell: React.FC<CellProps> = ({ terrain, occupied, onClick }) => {
+const Cell: React.FC<CellProps> = ({ terrain, occupiedBy, onClick }) => {
   return (
     <div
-      className={`cell ${terrain} ${occupied ? 'occupied' : ''}`}
+      className={`cell ${terrain} ${occupiedBy ? "occupied" : ""}`}
       onClick={onClick}
     >
-      {occupied ? '🏰' : terrain[0].toUpperCase()}
+      {occupiedBy ? "🏰" : terrain[0].toUpperCase()}
     </div>
   );
 };
