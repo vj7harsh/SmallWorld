@@ -1,0 +1,15 @@
+.board {
+  display: inline-grid;
+  grid-template-columns: repeat(5, 60px);
+  grid-template-rows: repeat(5, 60px);
+  gap: 2px;
+}
+
+.cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f0e68c;
+  border: 1px solid #333;
+  font-size: 0.8rem;
+}
