@@ -9,10 +9,10 @@ interface CellProps {
   border?: boolean;
 }
 
-const Cell: React.FC<CellProps> = ({ terrain, occupiedBy, onClick }) => {
+const Cell: React.FC<CellProps> = ({ terrain, occupiedBy, onClick, border }) => {
   return (
     <div
-      className={`cell ${terrain} ${occupiedBy ? "occupied" : ""}`}
+      className={`cell ${terrain} ${border ? "border" : ""} ${occupiedBy ? "occupied" : ""}`}
       onClick={onClick}
     >
       {occupiedBy ? "🏰" : terrain[0].toUpperCase()}

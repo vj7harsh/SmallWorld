@@ -10,6 +10,21 @@ const REGION_COUNT = 30;
 const manhattan = (r1: number, c1: number, r2: number, c2: number): number =>
   Math.abs(r1 - r2) + Math.abs(c1 - c2);
 
+// Orthogonal neighbors used for border detection
+const orthNeighbors = (r: number, c: number): [number, number][] => {
+  const offsets = [
+    [-1, 0],
+    [1, 0],
+    [0, -1],
+    [0, 1],
+  ];
+  return offsets
+    .map(([dr, dc]) => [r + dr, c + dc] as [number, number])
+    .filter(
+      ([nr, nc]) => nr >= 0 && nc >= 0 && nr < BOARD_SIZE && nc < BOARD_SIZE,
+    );
+};
+
 export const createBoard = (): { board: Cell[][]; regions: Region[] } => {
   // Step 1: Init board (everything unassigned)
   const board: Cell[][] = Array.from({ length: BOARD_SIZE }, (_, r) =>
@@ -17,6 +32,7 @@ export const createBoard = (): { board: Cell[][]; regions: Region[] } => {
       id: r * BOARD_SIZE + c,
       terrain: "unassigned" as Terrain,
       regionId: -1,
+      border: false,
     }))
   );
 
@@ -36,7 +52,7 @@ export const createBoard = (): { board: Cell[][]; regions: Region[] } => {
       let bestSeed = seeds[0];
       let bestDist = manhattan(r, c, bestSeed[0], bestSeed[1]);
       for (let s = 1; s < seeds.length; s++) {
-        const [sr, sc, id] = seeds[s];
+        const [sr, sc] = seeds[s];
         const dist = manhattan(r, c, sr, sc);
         if (dist < bestDist) {
           bestDist = dist;
@@ -65,6 +81,19 @@ export const createBoard = (): { board: Cell[][]; regions: Region[] } => {
 
     if (cells.length) {
       regions.push({ id, terrain, cells });
+    }
+  }
+
+  // Step 5: Mark borders between regions
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      const regionId = board[r][c].regionId;
+      for (const [nr, nc] of orthNeighbors(r, c)) {
+        if (board[nr][nc].regionId !== regionId) {
+          board[r][c].border = true;
+          break;
+        }
+      }
     }
   }
 
