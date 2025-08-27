@@ -5,4 +5,5 @@ export interface Cell {
   terrain: Terrain;
   regionId: number;
   occupiedBy?: number;
+  border?: boolean;
 }

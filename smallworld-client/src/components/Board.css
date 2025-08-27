@@ -12,24 +12,20 @@
   display: flex;
 }
 
-.board-row:not(:first-child) {
-  margin-top: -13px; /* overlap to align hex edges */
-}
-
-.board-row:nth-child(even) {
-  margin-left: 30px; /* half cell width for offset */
-}
-
 .cell {
-  width: 60px;
-  height: 52px;
+  width: 50px;
+  height: 50px;
   display: flex;
   justify-content: center;
   align-items: center;
   border: 1px solid #333;
   font-size: 0.8rem;
   cursor: pointer;
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+}
+
+.cell.border {
+  border: 2px solid #f602cd;
 }
 
 .cell.occupied {
@@ -62,6 +58,11 @@
 }
 
 .cell.swamp {
-  background-color: #556b2f;
+  background-color: #5f561d;
 }
+
+.cell.abyss {
+  background-color: #000000;
+}
+
 

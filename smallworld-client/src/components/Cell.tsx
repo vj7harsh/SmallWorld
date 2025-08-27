@@ -6,6 +6,7 @@ interface CellProps {
   terrain: Terrain;
   occupiedBy?: number;
   onClick: () => void;
+  border?: boolean;
 }
 
 const Cell: React.FC<CellProps> = ({ terrain, occupiedBy, onClick }) => {
