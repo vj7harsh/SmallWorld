@@ -23,20 +23,6 @@ const orthNeighbors = (r: number, c: number): [number, number][] => {
     );
 };
 
-// Orthogonal neighbors used for border detection
-const orthNeighbors = (r: number, c: number): [number, number][] => {
-  const offsets = [
-    [-1, 0],
-    [1, 0],
-    [0, -1],
-    [0, 1],
-  ];
-  return offsets
-    .map(([dr, dc]) => [r + dr, c + dc] as [number, number])
-    .filter(
-      ([nr, nc]) => nr >= 0 && nc >= 0 && nr < BOARD_SIZE && nc < BOARD_SIZE,
-    );
-};
 
 export const createBoard = (): { board: Cell[][]; regions: Region[] } => {
   // Step 1: Init board with water
