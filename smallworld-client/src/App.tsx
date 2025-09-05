@@ -1,13 +1,7 @@
-import Board from './components/Board';
-import './App.css';
+import IrregularHexRegions from './components/IrregularHexRegions';
 
 function App() {
-  return (
-    <div className="App">
-      <h1>Small World Prototype</h1>
-      <Board />
-    </div>
-  );
+  return <IrregularHexRegions />;
 }
 
 export default App;
