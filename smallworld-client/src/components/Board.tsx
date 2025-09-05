@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
 import Cell from "./Cell";
 import type { Cell as CellType } from "../types/cell";
-import { createBoard } from "../utils/mapgenerator";
+import { createHexBoard } from "../utils/hexBoard";
 import "./Board.css";
 
 const Board: React.FC = () => {
   const [board, setBoard] = useState<CellType[][]>([]);
 
   useEffect(() => {
-    const { board } = createBoard();
+    const { board } = createHexBoard();
     setBoard(board);
   }, []);
 
