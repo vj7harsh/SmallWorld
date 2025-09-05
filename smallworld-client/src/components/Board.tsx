@@ -1,34 +1,28 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Cell from "./Cell";
-import type { Cell as CellType } from "../types/cell";
-import { createBoard } from "../utils/mapgenerator";
+import type { GameState } from "../game";
 import "./Board.css";
 
-const Board: React.FC = () => {
-  const [board, setBoard] = useState<CellType[][]>([]);
+interface BoardProps {
+  G: GameState;
+  moves: { selectCell: (row: number, col: number) => void };
+}
 
-  useEffect(() => {
-    const { board } = createBoard();
-    setBoard(board);
-  }, []);
-
-  const handleCellClick = (regionId: number) => {
-    // Placeholder for interaction logic
-    console.log(`Clicked region ${regionId}`);
-  };
+const Board: React.FC<BoardProps> = ({ G, moves }) => {
+  const { board } = G;
 
   return (
     <div className="board-container">
       <div className="board">
         {board.map((row, r) => (
           <div key={r} className="board-row">
-            {row.map((cell) => (
+            {row.map((cell, c) => (
               <Cell
                 key={cell.id}
                 terrain={cell.terrain}
                 occupiedBy={cell.occupiedBy}
                 border={cell.border}
-                onClick={() => handleCellClick(cell.regionId)}
+                onClick={() => moves.selectCell(r, c)}
               />
             ))}
           </div>
