@@ -4,12 +4,7 @@ import { useMemo, useState, type PointerEvent } from "react";
 // - Uses axial coords (pointy-top)
 // - Procedural generation via simple cellular-automata smoothing over random noise
 // - Finds connected components to form "regions" and colors them distinctly
-//
-// Controls:
-// - Radius: size of the candidate field (larger => more possible tiles)
-// - Density: initial chance a tile is present before smoothing
-// - Smooth: number of smoothing passes (higher => chunkier blobs)
-// - Shuffle: reseed the generator to get a new shape
+// - Supports zoom and pan
 
 const SQRT3 = Math.sqrt(3);
 
@@ -85,7 +80,6 @@ function smoothPresence(
         if (cur.has(k)) cnt++;
       }
       const k = tileKey(q, r);
-      // keep if enough neighbors or already present with some support
       if (cnt >= threshold || (cur.has(k) && cnt >= 2)) next.add(k);
     }
     cur = next;
@@ -121,33 +115,39 @@ function computeRegions(kept: Set<string>) {
 }
 
 function hslFor(i: number) {
-  const hue = (i * 53) % 360; // pseudo-random spread
+  const hue = (i * 53) % 360;
   return {
     fill: `hsl(${hue} 70% 52%)`,
     stroke: `hsl(${hue} 65% 36%)`,
   };
 }
 
-export default function IrregularHexRegions() {
-  const [radius, setRadius] = useState(8); // candidate field radius
-  const [size, setSize] = useState(24); // tile pixel radius
-  const [density, setDensity] = useState(0.46); // initial random fill
-  const [smooth, setSmooth] = useState(2); // smoothing passes
-  const [seed, setSeed] = useState(12345);
+interface MapProps {
+  radius: number;
+  size: number;
+  density: number;
+  smooth: number;
+  seed: number;
+}
+
+export default function IrregularHexRegions({
+  radius,
+  size,
+  density,
+  smooth,
+  seed,
+}: MapProps) {
   const [hovered, setHovered] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1); // svg zoom level
-  const [pan, setPan] = useState({ x: 0, y: 0 }); // svg pan offset
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
 
-  // Build candidates and random initial presence using the RNG (stable per seed)
+  // Generate map data
   const { items, keptSet } = useMemo(() => {
     const candidates = buildAxialField(radius);
 
-    // random initial presence
-    // generate deterministic pseudo-random per tile by hashing coords with seed
     const present = new Set<string>();
     for (const { q, r } of candidates) {
-      // mix seed with coordinates (simple integer hash)
       const h = ((q * 73856093) ^ (r * 19349663) ^ seed) >>> 0;
       const rr = mulberry32(h)();
       if (rr < density) present.add(tileKey(q, r));
@@ -163,10 +163,9 @@ export default function IrregularHexRegions() {
     return { items, keptSet: kept };
   }, [radius, size, density, smooth, seed]);
 
-  // Connected components => regions
   const regions = useMemo(() => computeRegions(keptSet), [keptSet]);
 
-  // Compute viewBox from kept tiles only
+  // Layout and center
   const layout = useMemo(() => {
     if (items.length === 0) return { minX: 0, minY: 0, width: 0, height: 0 };
     const padding = size * 2;
@@ -187,7 +186,7 @@ export default function IrregularHexRegions() {
     [layout]
   );
 
-  const shuffle = () => setSeed((s) => (s * 1664525 + 1013904223) >>> 0);
+  // Zoom & pan handlers
   const zoomIn = () => setZoom((z) => Math.min(z * 1.25, 4));
   const zoomOut = () => setZoom((z) => Math.max(z / 1.25, 0.5));
 
@@ -210,141 +209,78 @@ export default function IrregularHexRegions() {
   };
 
   return (
-    <div className="w-full h-full p-4 flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <label className="text-sm opacity-80">Radius</label>
-          <input
-            type="range"
-            min={4}
-            max={18}
-            value={radius}
-            onChange={(e) => setRadius(parseInt(e.target.value, 10))}
-          />
-          <span className="text-sm tabular-nums w-8 text-center">{radius}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-sm opacity-80">Tile size</label>
-          <input
-            type="range"
-            min={14}
-            max={56}
-            value={size}
-            onChange={(e) => setSize(parseInt(e.target.value, 10))}
-          />
-          <span className="text-sm tabular-nums w-10 text-center">{size}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-sm opacity-80">Density</label>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={density}
-            onChange={(e) => setDensity(parseFloat(e.target.value))}
-          />
-          <span className="text-sm tabular-nums w-12 text-center">{density.toFixed(2)}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-sm opacity-80">Smooth</label>
-          <input
-            type="range"
-            min={0}
-            max={5}
-            value={smooth}
-            onChange={(e) => setSmooth(parseInt(e.target.value, 10))}
-          />
-          <span className="text-sm tabular-nums w-6 text-center">{smooth}</span>
-        </div>
+    <div className="w-full h-full relative">
+      <svg
+        className="w-full h-full"
+        viewBox={`${layout.minX} ${layout.minY} ${layout.width} ${layout.height}`}
+        role="img"
+        aria-label="Irregular hex regions"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerUp}
+        style={{
+          touchAction: "none",
+          cursor: pointer ? "grabbing" : zoom !== 1 ? "grab" : "default",
+        }}
+      >
+        <defs>
+          <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="1" stdDeviation="2" floodOpacity="0.25" />
+          </filter>
+        </defs>
+
+        <g
+          transform={`translate(${pan.x} ${pan.y})
+                      translate(${center.x} ${center.y})
+                      scale(${zoom})
+                      translate(${-center.x} ${-center.y})`}
+        >
+          {regions.map((comp, idx) => {
+            const { fill, stroke } = hslFor(idx);
+            return (
+              <g key={`reg-${idx}`} filter="url(#shadow)">
+                {comp.map((k) => {
+                  const it = items.find((t) => t.k === k)!;
+                  const pts = formatPoints(hexCorners(it.x, it.y, size));
+                  const isHovered = hovered === k;
+                  return (
+                    <polygon
+                      key={k}
+                      points={pts}
+                      fill={fill}
+                      stroke={stroke}
+                      strokeWidth={1.25}
+                      style={{
+                        cursor: "pointer",
+                        opacity: isHovered ? 0.85 : 1,
+                        transition: "opacity 120ms linear",
+                      }}
+                      onMouseEnter={() => setHovered(k)}
+                      onMouseLeave={() => setHovered(null)}
+                    />
+                  );
+                })}
+              </g>
+            );
+          })}
+        </g>
+      </svg>
+
+      {/* Zoom controls */}
+      <div className="absolute top-2 right-2 flex flex-col gap-1">
         <button
-          onClick={shuffle}
-          className="ml-auto px-3 py-1.5 rounded-xl bg-black/5 dark:bg-white/10 ring-1 ring-black/10 text-sm"
+          onClick={zoomIn}
+          className="w-8 h-8 rounded-lg bg-black/5 dark:bg-white/10 ring-1 ring-black/10"
         >
-          Shuffle
+          +
         </button>
-      </div>
-
-      <div className="relative w-full grow rounded-2xl bg-neutral-900/5 dark:bg-neutral-800/40 ring-1 ring-black/5 overflow-hidden">
-        <svg
-          className="w-full h-full"
-          viewBox={`${layout.minX} ${layout.minY} ${layout.width} ${layout.height}`}
-          role="img"
-          aria-label="Irregular hex regions"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={onPointerUp}
-          style={{ touchAction: "none", cursor: pointer ? "grabbing" : zoom !== 1 ? "grab" : "default" }}
+        <button
+          onClick={zoomOut}
+          className="w-8 h-8 rounded-lg bg-black/5 dark:bg-white/10 ring-1 ring-black/10"
         >
-          <defs>
-            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="1" stdDeviation="2" floodOpacity="0.25" />
-            </filter>
-          </defs>
-
-          <g transform={`translate(${pan.x} ${pan.y}) translate(${center.x} ${center.y}) scale(${zoom}) translate(${-center.x} ${-center.y})`}>
-            {regions.map((comp, idx) => {
-              const { fill, stroke } = hslFor(idx);
-              return (
-                <g key={`reg-${idx}`} filter="url(#shadow)">
-                  {comp.map((k) => {
-                    const it = items.find((t) => t.k === k)!;
-                    const pts = formatPoints(hexCorners(it.x, it.y, size));
-                    const isHovered = hovered === k;
-                    return (
-                      <polygon
-                        key={k}
-                        points={pts}
-                        fill={fill}
-                        stroke={stroke}
-                        strokeWidth={1.25}
-                        style={{ cursor: "pointer", opacity: isHovered ? 0.85 : 1, transition: "opacity 120ms linear" }}
-                        onMouseEnter={() => setHovered(k)}
-                        onMouseLeave={() => setHovered(null)}
-                      />
-                    );
-                  })}
-                </g>
-              );
-            })}
-          </g>
-        </svg>
-        <div className="absolute top-2 right-2 flex flex-col gap-1">
-          <button
-            onClick={zoomIn}
-            className="w-8 h-8 rounded-lg bg-black/5 dark:bg-white/10 ring-1 ring-black/10"
-          >
-            +
-          </button>
-          <button
-            onClick={zoomOut}
-            className="w-8 h-8 rounded-lg bg-black/5 dark:bg-white/10 ring-1 ring-black/10"
-          >
-            -
-          </button>
-        </div>
-      </div>
-
-      <div className="text-xs opacity-70 space-y-1">
-        <p>
-          This generator creates an <b>irregular map</b> by randomly selecting tiles within a large
-          axial field and then smoothing via a simple cellular-automata rule. Afterward, contiguous
-          components are detected to form <b>regions</b>, each colored differently.
-        </p>
-        <p>
-          Tips: Increase <b>Smooth</b> for chunkier landmasses; tweak <b>Density</b> to control land/water
-          ratio. Hit <b>Shuffle</b> for a fresh world using a new seed.
-        </p>
-      </div>
-
-      <div className="text-xs opacity-70 grid grid-cols-2 gap-2">
-        <div>
-          Regions: <span className="font-medium">{regions.length}</span>
-        </div>
-        <div>
-          Tiles: <span className="font-medium">{items.length}</span>
-        </div>
+          -
+        </button>
       </div>
     </div>
   );
