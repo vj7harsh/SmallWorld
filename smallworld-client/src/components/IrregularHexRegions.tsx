@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type PointerEvent } from "react";
 
 // Irregular map made of hex tiles, grouped into contiguous hex regions (not a fixed outer shape)
 // - Uses axial coords (pointy-top)
@@ -136,6 +136,8 @@ export default function IrregularHexRegions() {
   const [seed, setSeed] = useState(12345);
   const [hovered, setHovered] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1); // svg zoom level
+  const [pan, setPan] = useState({ x: 0, y: 0 }); // svg pan offset
+  const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
 
   // Build candidates and random initial presence using the RNG (stable per seed)
   const { items, keptSet } = useMemo(() => {
@@ -188,6 +190,24 @@ export default function IrregularHexRegions() {
   const shuffle = () => setSeed((s) => (s * 1664525 + 1013904223) >>> 0);
   const zoomIn = () => setZoom((z) => Math.min(z * 1.25, 4));
   const zoomOut = () => setZoom((z) => Math.max(z / 1.25, 0.5));
+
+  const onPointerDown = (e: PointerEvent<SVGSVGElement>) => {
+    setPointer({ x: e.clientX, y: e.clientY });
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMove = (e: PointerEvent<SVGSVGElement>) => {
+    if (!pointer) return;
+    const dx = e.clientX - pointer.x;
+    const dy = e.clientY - pointer.y;
+    setPan((p) => ({ x: p.x + dx, y: p.y + dy }));
+    setPointer({ x: e.clientX, y: e.clientY });
+  };
+
+  const onPointerUp = (e: PointerEvent<SVGSVGElement>) => {
+    setPointer(null);
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  };
 
   return (
     <div className="w-full h-full p-4 flex flex-col gap-3">
@@ -251,6 +271,11 @@ export default function IrregularHexRegions() {
           viewBox={`${layout.minX} ${layout.minY} ${layout.width} ${layout.height}`}
           role="img"
           aria-label="Irregular hex regions"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerLeave={onPointerUp}
+          style={{ touchAction: "none", cursor: pointer ? "grabbing" : zoom !== 1 ? "grab" : "default" }}
         >
           <defs>
             <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -258,7 +283,7 @@ export default function IrregularHexRegions() {
             </filter>
           </defs>
 
-          <g transform={`translate(${center.x} ${center.y}) scale(${zoom}) translate(${-center.x} ${-center.y})`}>
+          <g transform={`translate(${pan.x} ${pan.y}) translate(${center.x} ${center.y}) scale(${zoom}) translate(${-center.x} ${-center.y})`}>
             {regions.map((comp, idx) => {
               const { fill, stroke } = hslFor(idx);
               return (
