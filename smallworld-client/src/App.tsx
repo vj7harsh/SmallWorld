@@ -1,17 +1,19 @@
-import { useState } from 'react';
-import Home from './components/Home';
-import IrregularHexRegions from './components/IrregularHexRegions';
+import { useState } from "react";
+import Home from "./components/Home";
+import MapPage from "./components/MapPage";
 
 function App() {
-  const [started, setStarted] = useState(false);
+  const [players, setPlayers] = useState<number | null>(null);
+  const [mode, setMode] = useState<"create" | "join" | null>(null);
 
-  const handleStart = (mode: 'create' | 'join', players: number) => {
-    console.log(`Mode: ${mode}, players: ${players}`);
-    setStarted(true);
+  const handleStart = (m: "create" | "join", p: number) => {
+    console.log(`Mode: ${m}, players: ${p}`);
+    setMode(m);
+    setPlayers(p);
   };
 
-  if (started) {
-    return <IrregularHexRegions />;
+  if (players !== null && mode !== null) {
+    return <MapPage players={players} mode={mode} />;
   }
 
   return <Home onStart={handleStart} />;
