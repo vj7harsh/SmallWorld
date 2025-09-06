@@ -1,0 +1,367 @@
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/smallworld-client/src/App.css b/smallworld-client/src/App.css
+index b9d355df2a5956b526c004531b7b0ffe412461e0..732a6c4416ab7bc4c4681ee226ab22dc29c458ce 100644
+--- a/smallworld-client/src/App.css
++++ b/smallworld-client/src/App.css
+@@ -1,42 +1,10 @@
+ #root {
+   max-width: 1280px;
+   margin: 0 auto;
+   padding: 2rem;
+   text-align: center;
+ }
+ 
+-.logo {
+-  height: 6em;
+-  padding: 1.5em;
+-  will-change: filter;
+-  transition: filter 300ms;
+-}
+-.logo:hover {
+-  filter: drop-shadow(0 0 2em #646cffaa);
+-}
+-.logo.react:hover {
+-  filter: drop-shadow(0 0 2em #61dafbaa);
+-}
+-
+-@keyframes logo-spin {
+-  from {
+-    transform: rotate(0deg);
+-  }
+-  to {
+-    transform: rotate(360deg);
+-  }
+-}
+-
+-@media (prefers-reduced-motion: no-preference) {
+-  a:nth-of-type(2) .logo {
+-    animation: logo-spin infinite 20s linear;
+-  }
+-}
+-
+-.card {
+-  padding: 2em;
+-}
+-
+-.read-the-docs {
+-  color: #888;
++h1 {
++  margin-bottom: 1rem;
+ }
+diff --git a/smallworld-client/src/App.tsx b/smallworld-client/src/App.tsx
+index 3d7ded3ff62424046af18e2b5b8b8324c7e0001d..abf36f35961371baccd47c94eb501178c16c3841 100644
+--- a/smallworld-client/src/App.tsx
++++ b/smallworld-client/src/App.tsx
+@@ -1,35 +1,13 @@
+-import { useState } from 'react'
+-import reactLogo from './assets/react.svg'
+-import viteLogo from '/vite.svg'
+-import './App.css'
++import Board from './components/Board';
++import './App.css';
+ 
+ function App() {
+-  const [count, setCount] = useState(0)
+-
+   return (
+-    <>
+-      <div>
+-        <a href="https://vite.dev" target="_blank">
+-          <img src={viteLogo} className="logo" alt="Vite logo" />
+-        </a>
+-        <a href="https://react.dev" target="_blank">
+-          <img src={reactLogo} className="logo react" alt="React logo" />
+-        </a>
+-      </div>
+-      <h1>Vite + React</h1>
+-      <div className="card">
+-        <button onClick={() => setCount((count) => count + 1)}>
+-          count is {count}
+-        </button>
+-        <p>
+-          Edit <code>src/App.tsx</code> and save to test HMR
+-        </p>
+-      </div>
+-      <p className="read-the-docs">
+-        Click on the Vite and React logos to learn more
+-      </p>
+-    </>
+-  )
++    <div className="App">
++      <h1>Small World Prototype</h1>
++      <Board />
++    </div>
++  );
+ }
+ 
+-export default App
++export default App;
+diff --git a/smallworld-client/src/components/Board.css b/smallworld-client/src/components/Board.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..2d249ca03e67dfaccfa2b1d09e667effa1f9ec6c
+--- /dev/null
++++ b/smallworld-client/src/components/Board.css
+@@ -0,0 +1,60 @@
++
++.board-container {
++  display: inline-block;
++}
++
++.board {
++  display: flex;
++  flex-direction: column;
++}
++
++.board-row {
++  display: flex;
++  gap: 4px;
++}
++
++.board-row:nth-child(even) {
++  margin-left: 32px; /* offset for hex rows */
++}
++
++.cell {
++  width: 60px;
++  height: 52px;
++  display: flex;
++  justify-content: center;
++  align-items: center;
++  border: 1px solid #333;
++  font-size: 0.8rem;
++  cursor: pointer;
++  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
++}
++
++.cell.occupied {
++  border: 2px solid gold;
++}
++
++.region-info {
++  margin-top: 1rem;
++  text-align: center;
++}
++
++.cell.forest {
++  background-color: #228b22;
++}
++
++.cell.hill {
++  background-color: #cd853f;
++}
++
++.cell.mountain {
++  background-color: #a9a9a9;
++}
++
++.cell.water {
++  background-color: #1e90ff;
++}
++
++.cell.plains {
++  background-color: #f0e68c;
++}
++
+diff --git a/smallworld-client/src/components/Board.tsx b/smallworld-client/src/components/Board.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..561c7fe6c27de4047e8545bd00535afad66d288e
+--- /dev/null
++++ b/smallworld-client/src/components/Board.tsx
+@@ -0,0 +1,70 @@
++import React from 'react';
++import Cell from './Cell';
++import './Board.css';
++import type { Region } from '../types/region';
++
++// Layout map: 0 represents sea, numbers map to region ids
++const BOARD_LAYOUT: number[][] = [
++  [0, 0, 0, 0, 0],
++  [0, 1, 1, 2, 0],
++  [0, 3, 1, 2, 0],
++  [0, 3, 3, 2, 0],
++  [0, 0, 0, 0, 0],
++];
++
++const INITIAL_REGIONS: Region[] = [
++  { id: 1, terrain: 'forest', occupied: false },
++  { id: 2, terrain: 'hill', occupied: false },
++  { id: 3, terrain: 'mountain', occupied: false },
++];
++
++const Board: React.FC = () => {
++  const [regions, setRegions] = React.useState<Region[]>(INITIAL_REGIONS);
++  const [selected, setSelected] = React.useState<Region | null>(null);
++
++  const handleCellClick = (row: number, col: number) => {
++    const regionId = BOARD_LAYOUT[row][col];
++    if (!regionId) {
++      setSelected({ id: 0, terrain: 'water', occupied: false });
++      return;
++    }
++
++    setRegions(prev => {
++      const updated = prev.map(r =>
++        r.id === regionId ? { ...r, occupied: !r.occupied } : r
++      );
++      setSelected(updated.find(r => r.id === regionId) || null);
++      return updated;
++    });
++  };
++
++  return (
++    <div className="board-container">
++      <div className="board">
++        {BOARD_LAYOUT.map((rowData, row) => (
++          <div className="board-row" key={row}>
++            {rowData.map((regionId, col) => {
++              const region = regions.find(r => r.id === regionId);
++              return (
++                <Cell
++                  key={col}
++                  terrain={region ? region.terrain : 'water'}
++                  occupied={region ? region.occupied : false}
++                  onClick={() => handleCellClick(row, col)}
++                />
++              );
++            })}
++          </div>
++        ))}
++      </div>
++      <div className="region-info">
++        {selected
++          ? `Terrain: ${selected.terrain}, Occupied: ${selected.occupied ? 'Yes' : 'No'}`
++          : 'Click a region to see details.'}
++      </div>
++    </div>
++  );
++};
++
++export default Board;
++
+diff --git a/smallworld-client/src/components/Cell.tsx b/smallworld-client/src/components/Cell.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..7b37baf5528f654fea081a88fc1f4e9177b87bbc
+--- /dev/null
++++ b/smallworld-client/src/components/Cell.tsx
+@@ -0,0 +1,22 @@
++import React from 'react';
++import './Board.css';
++import type { Terrain } from '../types/terrain';
++
++interface CellProps {
++  terrain: Terrain;
++  occupied: boolean;
++  onClick: () => void;
++}
++
++const Cell: React.FC<CellProps> = ({ terrain, occupied, onClick }) => {
++  return (
++    <div
++      className={`cell ${terrain} ${occupied ? 'occupied' : ''}`}
++      onClick={onClick}
++    >
++      {occupied ? '🏰' : terrain[0].toUpperCase()}
++    </div>
++  );
++};
++
++export default Cell;
+diff --git a/smallworld-client/src/index.css b/smallworld-client/src/index.css
+index 08a3ac9e1e5c44ce374f782d7c4fa3aa70e4c1ff..ed6206416334c846828759a91c69792ae79a023f 100644
+--- a/smallworld-client/src/index.css
++++ b/smallworld-client/src/index.css
+@@ -1,68 +1,56 @@
+ :root {
+   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+   line-height: 1.5;
+   font-weight: 400;
+ 
+-  color-scheme: light dark;
+-  color: rgba(255, 255, 255, 0.87);
+-  background-color: #242424;
++  color: #213547;
++  background-color: #f5f5dc;
+ 
+   font-synthesis: none;
+   text-rendering: optimizeLegibility;
+   -webkit-font-smoothing: antialiased;
+   -moz-osx-font-smoothing: grayscale;
+ }
+ 
+ a {
+   font-weight: 500;
+   color: #646cff;
+   text-decoration: inherit;
+ }
+ a:hover {
+   color: #535bf2;
+ }
+ 
+ body {
+   margin: 0;
+   display: flex;
+   place-items: center;
+   min-width: 320px;
+   min-height: 100vh;
++  background: linear-gradient(135deg, #f6f1e1 0%, #d5c9a3 100%);
+ }
+ 
+ h1 {
+   font-size: 3.2em;
+   line-height: 1.1;
+ }
+ 
+ button {
+   border-radius: 8px;
+   border: 1px solid transparent;
+   padding: 0.6em 1.2em;
+   font-size: 1em;
+   font-weight: 500;
+   font-family: inherit;
+   background-color: #1a1a1a;
+   cursor: pointer;
+   transition: border-color 0.25s;
+ }
+ button:hover {
+   border-color: #646cff;
+ }
+ button:focus,
+ button:focus-visible {
+   outline: 4px auto -webkit-focus-ring-color;
+ }
+ 
+-@media (prefers-color-scheme: light) {
+-  :root {
+-    color: #213547;
+-    background-color: #ffffff;
+-  }
+-  a:hover {
+-    color: #747bff;
+-  }
+-  button {
+-    background-color: #f9f9f9;
+-  }
+-}
+diff --git a/smallworld-client/src/types/region.ts b/smallworld-client/src/types/region.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..ac852b7d4ad5c8a9ff291f1b9c6c5460dc94fc64
+--- /dev/null
++++ b/smallworld-client/src/types/region.ts
+@@ -0,0 +1,7 @@
++import type { Terrain } from './terrain';
++
++export interface Region {
++  id: number;
++  terrain: Terrain;
++  occupied: boolean;
++}
+diff --git a/smallworld-client/src/types/terrain.ts b/smallworld-client/src/types/terrain.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..658cebda1f724c1a4581c275b80e99f36e196cd7
+--- /dev/null
++++ b/smallworld-client/src/types/terrain.ts
+@@ -0,0 +1,3 @@
++export type Terrain = 'forest' | 'hill' | 'mountain' | 'water' | 'plains';
++
++export const TERRAINS: Terrain[] = ['forest', 'hill', 'mountain', 'water', 'plains'];
+ 
