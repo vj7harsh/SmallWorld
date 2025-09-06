@@ -210,7 +210,7 @@ export default function IrregularHexRegions() {
   };
 
   return (
-    <div className="w-full h-full p-4 flex flex-col gap-3">
+    <div className="w-screen h-screen p-4 box-border flex flex-col gap-3 overflow-hidden">
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <label className="text-sm opacity-80">Radius</label>
