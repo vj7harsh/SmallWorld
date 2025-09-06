@@ -135,6 +135,7 @@ export default function IrregularHexRegions() {
   const [smooth, setSmooth] = useState(2); // smoothing passes
   const [seed, setSeed] = useState(12345);
   const [hovered, setHovered] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1); // svg zoom level
 
   // Build candidates and random initial presence using the RNG (stable per seed)
   const { items, keptSet } = useMemo(() => {
@@ -176,7 +177,17 @@ export default function IrregularHexRegions() {
     return { minX, minY, width: maxX - minX, height: maxY - minY };
   }, [items, size]);
 
+  const center = useMemo(
+    () => ({
+      x: layout.minX + layout.width / 2,
+      y: layout.minY + layout.height / 2,
+    }),
+    [layout]
+  );
+
   const shuffle = () => setSeed((s) => (s * 1664525 + 1013904223) >>> 0);
+  const zoomIn = () => setZoom((z) => Math.min(z * 1.25, 4));
+  const zoomOut = () => setZoom((z) => Math.max(z / 1.25, 0.5));
 
   return (
     <div className="w-full h-full p-4 flex flex-col gap-3">
@@ -247,31 +258,47 @@ export default function IrregularHexRegions() {
             </filter>
           </defs>
 
-          {regions.map((comp, idx) => {
-            const { fill, stroke } = hslFor(idx);
-            return (
-              <g key={`reg-${idx}`} filter="url(#shadow)">
-                {comp.map((k) => {
-                  const it = items.find((t) => t.k === k)!;
-                  const pts = formatPoints(hexCorners(it.x, it.y, size));
-                  const isHovered = hovered === k;
-                  return (
-                    <polygon
-                      key={k}
-                      points={pts}
-                      fill={fill}
-                      stroke={stroke}
-                      strokeWidth={1.25}
-                      style={{ cursor: "pointer", opacity: isHovered ? 0.85 : 1, transition: "opacity 120ms linear" }}
-                      onMouseEnter={() => setHovered(k)}
-                      onMouseLeave={() => setHovered(null)}
-                    />
-                  );
-                })}
-              </g>
-            );
-          })}
+          <g transform={`translate(${center.x} ${center.y}) scale(${zoom}) translate(${-center.x} ${-center.y})`}>
+            {regions.map((comp, idx) => {
+              const { fill, stroke } = hslFor(idx);
+              return (
+                <g key={`reg-${idx}`} filter="url(#shadow)">
+                  {comp.map((k) => {
+                    const it = items.find((t) => t.k === k)!;
+                    const pts = formatPoints(hexCorners(it.x, it.y, size));
+                    const isHovered = hovered === k;
+                    return (
+                      <polygon
+                        key={k}
+                        points={pts}
+                        fill={fill}
+                        stroke={stroke}
+                        strokeWidth={1.25}
+                        style={{ cursor: "pointer", opacity: isHovered ? 0.85 : 1, transition: "opacity 120ms linear" }}
+                        onMouseEnter={() => setHovered(k)}
+                        onMouseLeave={() => setHovered(null)}
+                      />
+                    );
+                  })}
+                </g>
+              );
+            })}
+          </g>
         </svg>
+        <div className="absolute top-2 right-2 flex flex-col gap-1">
+          <button
+            onClick={zoomIn}
+            className="w-8 h-8 rounded-lg bg-black/5 dark:bg-white/10 ring-1 ring-black/10"
+          >
+            +
+          </button>
+          <button
+            onClick={zoomOut}
+            className="w-8 h-8 rounded-lg bg-black/5 dark:bg-white/10 ring-1 ring-black/10"
+          >
+            -
+          </button>
+        </div>
       </div>
 
       <div className="text-xs opacity-70 space-y-1">
