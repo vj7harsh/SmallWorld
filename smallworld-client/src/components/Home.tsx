@@ -1,40 +1,49 @@
 import { useState } from 'react';
 
 interface HomeProps {
-  onStart: (mode: 'create' | 'join', players: number) => void;
+  onCreate: (roomId: string, playerName: string) => void;
+  onJoin: (roomId: string, playerName: string) => void;
 }
 
-export default function Home({ onStart }: HomeProps) {
-  const [players, setPlayers] = useState(2);
+export default function Home({ onCreate, onJoin }: HomeProps) {
+  const [roomId, setRoomId] = useState('game123');
+  const [playerName, setPlayerName] = useState('');
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-6 p-6">
-      <div className="flex items-center gap-2">
-        <label className="text-sm opacity-80">Players</label>
+    <div className="w-full h-full flex items-center justify-center">
+      <div className="flex flex-col gap-4 p-6 rounded-xl border bg-white/80 shadow-sm min-w-[320px]">
+        <h2 className="text-lg font-semibold">SmallWorld</h2>
         <input
-          type="number"
-          min={2}
-          max={8}
-          value={players}
-          onChange={(e) => setPlayers(parseInt(e.target.value, 10))}
-          className="w-16 rounded-md border px-1 py-0.5 text-center bg-white/80 dark:bg-black/20"
+          type="text"
+          placeholder="Your name"
+          value={playerName}
+          onChange={(e) => setPlayerName(e.target.value)}
+          className="border p-2 rounded"
         />
-      </div>
-      <div className="flex gap-4">
-        <button
-          onClick={() => onStart('create', players)}
-          className="px-4 py-2 rounded-xl bg-black/5 dark:bg-white/10 ring-1 ring-black/10 text-sm"
-        >
-          Create Room
-        </button>
-        <button
-          onClick={() => onStart('join', players)}
-          className="px-4 py-2 rounded-xl bg-black/5 dark:bg-white/10 ring-1 ring-black/10 text-sm"
-        >
-          Join Room
-        </button>
+        <input
+          type="text"
+          placeholder="Room ID"
+          value={roomId}
+          onChange={(e) => setRoomId(e.target.value)}
+          className="border p-2 rounded"
+        />
+        <div className="flex gap-3">
+          <button
+            onClick={() => onCreate(roomId, playerName)}
+            className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+            disabled={!playerName || !roomId}
+          >
+            Create Game
+          </button>
+          <button
+            onClick={() => onJoin(roomId, playerName)}
+            className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+            disabled={!playerName || !roomId}
+          >
+            Join Game
+          </button>
+        </div>
       </div>
     </div>
   );
 }
-

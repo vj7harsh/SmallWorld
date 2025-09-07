@@ -26,6 +26,7 @@ body,
 #root {
   width: 100%;
   height: 100%;
+  overflow: hidden; /* lock page scrolling; map handles its own */
 }
 
 body {
@@ -57,4 +58,3 @@ button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
-

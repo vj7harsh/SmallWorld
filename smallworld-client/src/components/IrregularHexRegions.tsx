@@ -1,4 +1,4 @@
-import { useMemo, useState, type PointerEvent } from "react";
+import { useMemo, useState, type PointerEvent, type WheelEvent } from "react";
 
 // Irregular map made of hex tiles, grouped into contiguous hex regions (not a fixed outer shape)
 // - Uses axial coords (pointy-top)
@@ -208,6 +208,16 @@ export default function IrregularHexRegions({
     e.currentTarget.releasePointerCapture(e.pointerId);
   };
 
+  const onWheel = (e: WheelEvent<SVGSVGElement>) => {
+    // Zoom in/out with mouse wheel or trackpad while over the map
+    e.preventDefault();
+    const factor = Math.exp(-e.deltaY * 0.0015); // smooth zoom
+    setZoom((z) => {
+      const next = z * factor;
+      return Math.max(0.5, Math.min(4, next));
+    });
+  };
+
   return (
     <div className="w-full h-full relative">
       <svg
@@ -219,6 +229,7 @@ export default function IrregularHexRegions({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerUp}
+        onWheel={onWheel}
         style={{
           touchAction: "none",
           cursor: pointer ? "grabbing" : zoom !== 1 ? "grab" : "default",
