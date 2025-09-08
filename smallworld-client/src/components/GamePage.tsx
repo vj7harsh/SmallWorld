@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import IrregularHexRegions from "./IrregularHexRegions";
 
 type MapCfg = { radius: number; density: number; smooth: number; size: number; seed: number };
+type Player = { name: string; race?: string };
 
 interface GamePageProps {
   ws: WebSocket;
@@ -11,14 +12,15 @@ interface GamePageProps {
 }
 
 export default function GamePage({ ws, roomId, playerName, map }: GamePageProps) {
-  const [players, setPlayers] = useState<string[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const me = players.find((p) => p.name === playerName);
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.type === "players") {
-          setPlayers(data.players);
+        if (data.type === "state") {
+          setPlayers((data.players || []) as Player[]);
         }
       } catch {}
     };
@@ -31,13 +33,24 @@ export default function GamePage({ ws, roomId, playerName, map }: GamePageProps)
       {/* Sidebar - player list */}
       <aside className="w-72 shrink-0 h-full p-4 flex flex-col gap-3 border-r bg-gray-100 dark:bg-neutral-900">
         <h2 className="font-semibold text-lg">Room: {roomId}</h2>
-        <div className="text-sm">You are: <b>{playerName}</b></div>
+        <div className="text-sm">You are: <b>{playerName}</b>{me?.race ? ` (${me.race})` : ""}</div>
         <div className="mt-2">
           <h3 className="font-semibold text-sm">Players</h3>
           <ul className="list-disc ml-5 text-sm">
-            {players.map((p) => (
-              <li key={p}>{p}</li>
-            ))}
+            {players.map((p) => {
+              const isMe = p.name === playerName;
+              return (
+                <li
+                  key={p.name}
+                  className={isMe ? "font-semibold text-blue-600" : undefined}
+                  title={isMe ? "This is you" : undefined}
+                >
+                  {p.name}
+                  {isMe ? " (You)" : ""}
+                  {p.race ? ` — ${p.race}` : ""}
+                </li>
+              );
+            })}
           </ul>
         </div>
       </aside>
