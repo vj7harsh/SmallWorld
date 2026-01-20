@@ -18,6 +18,8 @@ export function Panel({ title, subtitle, children, className, bodyClassName }: P
         boxShadow: '8px 8px 0px rgba(0,0,0,0.3)',
         width: '100%',
         overflow: 'hidden',
+        // Added a base font family for the whole panel to ensure it doesn't use Times New Roman
+        fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
       }}
       className={className ?? ""}
     >
@@ -43,11 +45,14 @@ export function Panel({ title, subtitle, children, className, bodyClassName }: P
         <div style={{ position: 'relative', zIndex: 10, textAlign: 'center' }}>
           <h2
             style={{
-              fontSize: '1.875rem',
+              // UPDATED: Adaptive font size
+              // It will be at least 1.5rem, grow based on 4% of window width, and max out at 2.5rem
+              fontSize: 'clamp(1.5rem, 4vw + 1rem, 2.5rem)', 
               letterSpacing: '0.05em',
               color: '#F0EAD6',
               textShadow: '3px 3px 0px rgba(0,0,0,0.3)',
               margin: 0,
+              lineHeight: 1.2, // Added for better multi-line behavior
             }}
           >
             {title}
@@ -55,8 +60,9 @@ export function Panel({ title, subtitle, children, className, bodyClassName }: P
           {subtitle && (
             <p
               style={{
+                // UPDATED: Adaptive font size for subtitle
+                fontSize: 'clamp(0.875rem, 2vw + 0.5rem, 1.25rem)',
                 marginTop: '0.5rem',
-                fontSize: '1.125rem',
                 color: 'rgba(240, 234, 214, 0.9)',
                 margin: '0.5rem 0 0 0',
               }}
