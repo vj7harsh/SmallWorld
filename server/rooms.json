@@ -73,5 +73,17 @@
     "players": [],
     "host": "valverde",
     "started": false
+  },
+  "e1e77f5a-ee56-44ee-9277-4438c27733b3": {
+    "players": [],
+    "host": "valverde",
+    "map": {
+      "radius": 12,
+      "density": 0.3,
+      "smooth": 2,
+      "size": 24,
+      "seed": 1768914426603
+    },
+    "started": false
   }
 }

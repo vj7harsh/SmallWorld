@@ -1,22 +1,3 @@
-/**
- * Lobby Page Component
- *
- * The pre-game lobby where players wait before the game starts.
- * Players can:
- * - See other players in the room
- * - Select their race
- * - Mark themselves as ready
- * - Host can configure the map and start the game
- *
- * Layout:
- * - Left sidebar: Room info, player list, ready button, map controls (host), start button
- * - Main area: Live map preview with current configuration
- *
- * WebSocket Communication:
- * - Sends: set_config (host), set_race, set_ready, start (host)
- * - Receives: state updates with player list, map config, started flag
- */
-
 import { useState, useEffect } from 'react';
 import { useGameSocket } from '../hooks/useGameSocket';
 import PlayerList from '../components/PlayerList';
@@ -26,42 +7,23 @@ import { Panel } from '../components/ui/panel';
 import { MapViewport } from '../components/MapViewport';
 import type { MapConfig } from '../types';
 
-/**
- * Props for the LobbyPage component
- */
 interface LobbyPageProps {
-  /** The room ID for the game */
   roomId: string;
-  /** The current player's display name */
   playerName: string;
-  /** The current player's UUID */
   playerId: string;
-  /** Whether the player created (create) or joined (join) the room */
   mode: 'create' | 'join';
-  /** Callback when the game starts, receives the final map configuration */
   onGameStart: (map: MapConfig) => void;
-  /** Callback when the player leaves the lobby */
   onLeave: () => void;
 }
 
-/**
- * Default map configuration used when creating a new room
- * or before the host sets a custom configuration
- */
 const DEFAULT_MAP: MapConfig = {
-  radius: 10,      // Hex grid radius (determines map size)
-  density: 0.46,   // Initial noise fill probability (0-1)
-  smooth: 2,       // Number of cellular automata smoothing passes
-  size: 24,        // Pixel size per hex tile
-  seed: Date.now(), // Random seed for procedural generation
+  radius: 10,
+  density: 0.46,
+  smooth: 2,
+  size: 24,
+  seed: Date.now(),
 };
 
-/**
- * LobbyPage - Pre-game room where players configure and ready up
- *
- * @param props - Component props with room info and callbacks
- * @returns The rendered lobby page component
- */
 export default function LobbyPage({
   roomId,
   playerName,
@@ -70,13 +32,9 @@ export default function LobbyPage({
   onGameStart,
   onLeave,
 }: LobbyPageProps) {
-  /** Local map configuration state (for immediate UI updates) */
   const [localMap, setLocalMap] = useState<MapConfig>(DEFAULT_MAP);
-
-  /** Zoom level for the map preview */
   const [mapZoom, setMapZoom] = useState(1);
 
-  // Connect to the game WebSocket and get room state + action methods
   const { connected, roomState, setConfig, setRace, setReady, startGame } = useGameSocket({
     roomId,
     playerName,
@@ -84,45 +42,23 @@ export default function LobbyPage({
     mode,
   });
 
-  /**
-   * Effect: Sync local map state with server state
-   * When the server broadcasts a new map configuration, update local state
-   */
   useEffect(() => {
     if (roomState.map) {
       setLocalMap(roomState.map);
     }
   }, [roomState.map]);
 
-  /**
-   * Effect: Handle game start
-   * When the server indicates the game has started, navigate to the game page
-   */
   useEffect(() => {
     if (roomState.started) {
       onGameStart(localMap);
     }
   }, [roomState.started, localMap, onGameStart]);
 
-  // Derived state for UI logic
-  /** Whether the current player is the host */
   const isHost = roomState.host === playerName;
-
-  /** The current player's data from the room state */
   const currentPlayer = roomState.players.find((p) => p.name === playerName);
-
-  /** Whether the current player has marked themselves as ready */
   const isReady = currentPlayer?.ready ?? false;
-
-  /** Whether all players in the room are ready */
   const allReady = roomState.players.length > 0 && roomState.players.every((p) => p.ready);
 
-  /**
-   * Handle map configuration changes (host only)
-   * Updates local state immediately for responsiveness, then syncs to server
-   *
-   * @param partial - Partial map config to merge with current config
-   */
   const handleMapChange = (partial: Partial<MapConfig>) => {
     if (!isHost) return;
     const newMap = { ...localMap, ...partial };
@@ -130,42 +66,25 @@ export default function LobbyPage({
     setConfig(newMap);
   };
 
-  /**
-   * Handle ready button toggle
-   * Switches the player's ready status between ready and not ready
-   */
-  const handleToggleReady = () => {
-    setReady(!isReady);
-  };
+  const handleToggleReady = () => setReady(!isReady);
 
-  /**
-   * Handle start game button click (host only)
-   * Sends final map configuration and starts the game
-   */
   const handleStartGame = () => {
     if (!isHost || !allReady) return;
-    // Send final config before starting
     setConfig(localMap);
     startGame();
   };
 
-  /**
-   * Copy the room code to clipboard
-   * Allows players to easily share the room code with friends
-   */
-  const copyRoomCode = () => {
-    navigator.clipboard.writeText(roomId);
-  };
+  const copyRoomCode = () => navigator.clipboard.writeText(roomId);
 
   return (
     <div
       className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden"
       style={{
-        fontFamily: "'Bangers', cursive",
+        fontFamily: "ui-sans-serif, system-ui, sans-serif",
         backgroundColor: '#2d3436'
       }}
     >
-      {/* Diagonal stripes background */}
+      {/* Background Pattern */}
       <div
         className="absolute inset-0 opacity-20"
         style={{
@@ -173,94 +92,48 @@ export default function LobbyPage({
         }}
       />
 
-      {/* Main content - two column layout */}
       <div className="relative z-10 w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-
-        {/* Left Panel - Room Details */}
+        
+        {/* LEFT PANEL: Room & Players */}
         <Panel
           title="GAME LOBBY"
           subtitle="PREPARE FOR BATTLE"
-          className="bg-[#F0EAD6] border-4 border-[#2d3436] shadow-[8px_8px_0px_rgba(0,0,0,0.3)] transform rotate-[-0.5deg]"
+          className="transform rotate-[-0.5deg]"
           bodyClassName="pt-4"
         >
           <div className="space-y-5">
-            {/* Room code with copy button */}
+            {/* Room Code */}
             <div className="space-y-2">
-              <label
-                className="block text-xl"
-                style={{ color: '#2d3436' }}
-              >
-                ROOM CODE:
-              </label>
+              <label className="block text-xl font-bold" style={{ color: '#2d3436' }}>ROOM CODE:</label>
               <div className="flex items-center gap-2">
                 <button
                   onClick={copyRoomCode}
-                  className="flex-1 px-4 py-3 text-lg outline-none transition text-left"
-                  style={{
-                    backgroundColor: 'white',
-                    border: '3px solid #2d3436',
-                    borderRadius: '0.5rem',
-                    color: '#2d3436',
-                    boxShadow: '3px 3px 0px rgba(0,0,0,0.2)',
-                    fontFamily: 'monospace',
-                  }}
-                  title="Click to copy"
+                  className="flex-1 px-4 py-3 text-lg font-mono bg-white border-[3px] border-[#2d3436] rounded-lg shadow-[3px_3px_0px_rgba(0,0,0,0.2)]"
                 >
                   {roomId}
                 </button>
                 <button
                   onClick={copyRoomCode}
-                  className="px-4 py-3 text-lg transition-all"
-                  style={{
-                    backgroundColor: '#4a5f3a',
-                    color: '#F0EAD6',
-                    border: '3px solid #2d3436',
-                    borderRadius: '0.5rem',
-                    boxShadow: '3px 3px 0px rgba(0,0,0,0.2)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '5px 5px 0px rgba(0,0,0,0.3)';
-                    e.currentTarget.style.transform = 'translate(-2px, -2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = '3px 3px 0px rgba(0,0,0,0.2)';
-                    e.currentTarget.style.transform = 'translate(0, 0)';
-                  }}
+                  className="px-4 py-3 font-bold bg-[#4a5f3a] text-[#F0EAD6] border-[3px] border-[#2d3436] rounded-lg"
                 >
                   COPY
                 </button>
               </div>
             </div>
 
-            {/* Connection status indicator */}
-            <div className="flex items-center gap-3 px-4 py-3" style={{
-              backgroundColor: connected ? 'rgba(74, 95, 58, 0.2)' : 'rgba(255, 107, 53, 0.2)',
-              border: `3px solid ${connected ? '#4a5f3a' : '#ff6b35'}`,
-              borderRadius: '0.5rem',
+            {/* Connection Status */}
+            <div className="flex items-center gap-3 px-4 py-2 rounded-lg border-[3px]" style={{
+              backgroundColor: connected ? 'rgba(74, 95, 58, 0.1)' : 'rgba(255, 107, 53, 0.1)',
+              borderColor: connected ? '#4a5f3a' : '#ff6b35',
             }}>
-              <span className={`w-3 h-3 rounded-full ${connected ? 'bg-[#4a5f3a]' : 'bg-[#ff6b35]'}`} />
-              <span className="text-lg" style={{ color: '#2d3436' }}>
-                {connected ? 'CONNECTED' : 'CONNECTING...'}
-              </span>
+              <div className={`w-3 h-3 rounded-full ${connected ? 'bg-[#4a5f3a]' : 'bg-[#ff6b35]'} animate-pulse`} />
+              <span className="font-bold text-[#2d3436]">{connected ? 'SYSTEMS ONLINE' : 'ESTABLISHING UPLINK...'}</span>
             </div>
 
-            {/* Player list with race selection */}
+            {/* Soldiers List */}
             <div className="space-y-2">
-              <label
-                className="block text-xl"
-                style={{ color: '#2d3436' }}
-              >
-                SOLDIERS:
-              </label>
-              <div
-                style={{
-                  backgroundColor: 'white',
-                  border: '3px solid #2d3436',
-                  borderRadius: '0.5rem',
-                  boxShadow: '3px 3px 0px rgba(0,0,0,0.2)',
-                  padding: '0.75rem',
-                }}
-              >
+              <label className="block text-xl font-bold" style={{ color: '#2d3436' }}>SOLDIERS:</label>
+              <div className="bg-white border-[3px] border-[#2d3436] rounded-lg p-3 shadow-[3px_3px_0px_rgba(0,0,0,0.1)]">
                 <PlayerList
                   players={roomState.players}
                   currentPlayer={playerName}
@@ -270,207 +143,102 @@ export default function LobbyPage({
               </div>
             </div>
 
-            {/* Ready/Not Ready toggle button */}
+            {/* Ready Button */}
             <button
               onClick={handleToggleReady}
-              className="w-full py-3 text-2xl tracking-wider transition-all"
+              className="w-full py-4 border-[4px] border-[#2d3436] rounded-xl shadow-[5px_5px_0px_rgba(0,0,0,0.3)] transition-all active:translate-y-1 active:shadow-none"
               style={{
                 backgroundColor: isReady ? '#ff6b35' : '#4a5f3a',
                 color: '#F0EAD6',
-                border: '4px solid #2d3436',
-                borderRadius: '0.5rem',
-                boxShadow: '5px 5px 0px rgba(0,0,0,0.3)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = '7px 7px 0px rgba(0,0,0,0.3)';
-                e.currentTarget.style.transform = 'translate(-2px, -2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = '5px 5px 0px rgba(0,0,0,0.3)';
-                e.currentTarget.style.transform = 'translate(0, 0)';
+                fontSize: 'clamp(1.25rem, 2vw, 1.75rem)',
+                fontWeight: 'bold'
               }}
             >
-              {isReady ? 'NOT READY' : 'READY'}
+              {isReady ? 'STANDING BY' : 'MARK READY'}
             </button>
 
-            {/* Map configuration controls (only host can modify) */}
-            {isHost && (
-              <>
-                {/* Divider */}
-                <div className="flex items-center gap-3 my-4">
-                  <div className="flex-1 h-1" style={{ backgroundColor: '#2d3436' }} />
-                  <span className="text-lg" style={{ color: '#2d3436' }}>MAP CONFIG</span>
-                  <div className="flex-1 h-1" style={{ backgroundColor: '#2d3436' }} />
-                </div>
-
-                <div
-                  style={{
-                    backgroundColor: 'white',
-                    border: '3px solid #2d3436',
-                    borderRadius: '0.5rem',
-                    boxShadow: '3px 3px 0px rgba(0,0,0,0.2)',
-                    padding: '1rem',
-                  }}
-                >
-                  <MapControls map={localMap} onChange={handleMapChange} disabled={!isHost} />
-                </div>
-              </>
-            )}
-
-            {/* Waiting message when not all players are ready */}
-            {!allReady && (
-              <div
-                className="px-4 py-3 text-lg text-center"
-                style={{
-                  backgroundColor: 'rgba(255, 107, 53, 0.2)',
-                  border: '3px solid #ff6b35',
-                  borderRadius: '0.5rem',
-                  color: '#2d3436',
-                }}
-              >
-                WAITING FOR ALL SOLDIERS TO BE READY...
-              </div>
-            )}
-
-            {/* Host gets start button, others see waiting message */}
+            {/* Game Start Logic */}
             {isHost ? (
               <button
                 onClick={handleStartGame}
                 disabled={!allReady}
-                className="w-full py-3 text-2xl tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  backgroundColor: '#2d3436',
-                  color: '#F0EAD6',
-                  border: '4px solid #2d3436',
-                  borderRadius: '0.5rem',
-                  boxShadow: '5px 5px 0px rgba(0,0,0,0.3)',
-                }}
-                onMouseEnter={(e) => {
-                  if (!e.currentTarget.disabled) {
-                    e.currentTarget.style.boxShadow = '7px 7px 0px rgba(0,0,0,0.3)';
-                    e.currentTarget.style.transform = 'translate(-2px, -2px)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = '5px 5px 0px rgba(0,0,0,0.3)';
-                  e.currentTarget.style.transform = 'translate(0, 0)';
-                }}
+                className="w-full py-4 bg-[#2d3436] text-[#F0EAD6] border-[4px] border-[#2d3436] rounded-xl shadow-[5px_5px_0px_rgba(0,0,0,0.3)] disabled:opacity-50 font-bold"
+                style={{ fontSize: 'clamp(1.25rem, 2vw, 1.75rem)' }}
               >
-                START GAME
+                {allReady ? 'ENGAGE BATTLE' : 'AWAITING SQUAD'}
               </button>
             ) : (
-              allReady && (
-                <div
-                  className="px-4 py-3 text-lg text-center"
-                  style={{
-                    backgroundColor: 'rgba(74, 95, 58, 0.2)',
-                    border: '3px solid #4a5f3a',
-                    borderRadius: '0.5rem',
-                    color: '#2d3436',
-                  }}
-                >
-                  WAITING FOR HOST TO START...
-                </div>
-              )
+              <div className="text-center p-3 border-2 border-dashed border-[#2d3436] rounded-lg opacity-70 font-bold text-[#2d3436]">
+                {allReady ? "AWAITING HOST COMMAND..." : "PREPARE YOURSELF..."}
+              </div>
             )}
 
-            {/* Leave game button */}
-            <button
-              onClick={onLeave}
-              className="w-full py-2 text-lg tracking-wider transition-all"
-              style={{
-                backgroundColor: 'transparent',
-                color: '#2d3436',
-                border: '3px solid #2d3436',
-                borderRadius: '0.5rem',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(45, 52, 54, 0.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              LEAVE GAME
+            <button onClick={onLeave} className="w-full py-2 border-2 border-[#2d3436] rounded-lg font-bold hover:bg-black/5 transition-colors text-[#2d3436]">
+              ABORT MISSION
             </button>
           </div>
         </Panel>
 
-        {/* Right Panel - Map Preview */}
-        <Panel
-          title="BATTLEFIELD"
-          subtitle="MAP PREVIEW"
-          className="bg-[#F0EAD6] border-4 border-[#2d3436] shadow-[8px_8px_0px_rgba(0,0,0,0.3)] transform rotate-[0.5deg]"
-          bodyClassName="p-0"
-        >
-          {/* Zoom slider control */}
-          <div
-            className="flex items-center gap-3 px-4 py-3 mx-6 mt-4"
-            style={{
-              backgroundColor: 'white',
-              border: '3px solid #2d3436',
-              borderRadius: '0.5rem',
-              boxShadow: '3px 3px 0px rgba(0,0,0,0.2)',
-            }}
+        {/* RIGHT PANEL: Map & Config */}
+        {/* RIGHT PANEL: Battlefield HUD */}
+        <div className="lg:col-span-8 h-full overflow-hidden flex flex-col">
+          <Panel
+            title="BATTLEFIELD"
+            subtitle="TACTICAL DISPLAY"
+            className="transform rotate-[0.5deg] h-full flex flex-col"
+            bodyClassName="p-0 relative flex-1" // Added relative here
           >
-            <label
-              className="text-base whitespace-nowrap"
-              style={{ color: '#2d3436' }}
-            >
-              ZOOM:
-            </label>
-            <input
-              type="range"
-              min="0.5"
-              max="2.5"
-              step="0.05"
-              value={mapZoom}
-              onChange={(e) => setMapZoom(parseFloat(e.target.value))}
-              className="flex-1 h-2 rounded-lg appearance-none cursor-pointer"
-              style={{
-                backgroundColor: '#e0e0e0',
-                accentColor: '#4a5f3a',
-              }}
-            />
-            <span
-              className="text-base font-mono w-12 text-right"
-              style={{ color: '#2d3436' }}
-            >
-              {mapZoom.toFixed(1)}x
-            </span>
-          </div>
+            {/* THE MAP (Full background) */}
+            <div className="absolute inset-0 z-0 bg-white">
+              <MapViewport zoom={mapZoom} className="w-full h-full">
+                <HexMap {...localMap} />
+              </MapViewport>
+            </div>
 
-          {/* Map preview container */}
-          <div
-            style={{
-              backgroundColor: 'white',
-              border: '3px solid #2d3436',
-              borderRadius: '0.5rem',
-              margin: '1rem 1.5rem 1.5rem 1.5rem',
-              overflow: 'hidden',
-              height: '400px',
-            }}
-          >
-            <MapViewport zoom={mapZoom} className="w-full h-full">
-              {/* Procedurally generated hex map preview */}
-              <HexMap
-                radius={localMap.radius}
-                density={localMap.density}
-                smooth={localMap.smooth}
-                size={localMap.size}
-                seed={localMap.seed}
-              />
-            </MapViewport>
-          </div>
+            {/* OVERLAY: Zoom Control (Top Right) */}
+            <div className="absolute top-4 right-4 z-10 w-64">
+              <div className="bg-[#F0EAD6]/90 backdrop-blur-sm border-[3px] border-[#2d3436] rounded-lg p-3 shadow-[4px_4px_0px_rgba(0,0,0,0.2)]">
+                <div className="flex items-center gap-3">
+                  <span className="font-bold text-xs text-[#2d3436]">ZOOM</span>
+                  <input
+                    type="range"
+                    min="0.5" max="2.5" step="0.1"
+                    value={mapZoom}
+                    onChange={(e) => setMapZoom(parseFloat(e.target.value))}
+                    className="flex-1 accent-[#4a5f3a] h-1.5"
+                  />
+                  <span className="font-mono text-xs w-8">{mapZoom.toFixed(1)}x</span>
+                </div>
+              </div>
+            </div>
 
-          {/* Pan hint */}
-          <p
-            className="text-center text-sm pb-4"
-            style={{ color: '#666' }}
-          >
-            Drag to pan • Use slider to zoom
-          </p>
-        </Panel>
+            {/* OVERLAY: Tactical Controls (Bottom Right) - Only for Host */}
+            {isHost && (
+              <div className="absolute bottom-4 right-4 z-10 w-72">
+                <div className="bg-[#F0EAD6]/90 backdrop-blur-sm border-[3px] border-[#2d3436] rounded-lg p-4 shadow-[4px_4px_0px_rgba(0,0,0,0.2)]">
+                  <div className="text-[10px] font-bold opacity-60 mb-2 tracking-tighter uppercase">Terrain Generator</div>
+                  <div className="max-h-[30vh] overflow-y-auto pr-1 custom-scrollbar">
+                    <MapControls map={localMap} onChange={handleMapChange} disabled={!isHost} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* OVERLAY: Tactical Intel (Bottom Left) */}
+            <div className="absolute bottom-4 left-4 z-10">
+              <div className="bg-[#2d3436]/80 text-[#F0EAD6] px-3 py-1 border-2 border-[#F0EAD6]/20 rounded text-[10px] uppercase tracking-widest">
+                {isHost ? "Status: Commanding" : "Status: Receiving Intel"}
+              </div>
+            </div>
+
+            {/* Controls Hint */}
+            <div className="absolute top-4 left-4 z-10 pointer-events-none">
+              <p className="text-[10px] uppercase tracking-widest opacity-40 text-[#2d3436] bg-white/50 px-2 rounded">
+                Right Click + Drag to Pan
+              </p>
+            </div>
+          </Panel>
+        </div>
       </div>
     </div>
   );
