@@ -1,0 +1,6 @@
+1. Upon refresh of host's lobby page the host is moving to a different player, the host player should never change. I think the host_id is missing in the db table games, add that and don't change it through out the game.
+
+2. I want to add a proper sign in and create account page for my home screen, once the player signs in, maintain a session for the user.  I want you to add player authentication with username and password, and store the accounts, take username, password and make the newcessary change to player table and change docker and sql files as well, no need for encryption of password, store as a string. can't go further with out auth. Once logged in the session is maintained and redirected to create or join room. The current homepage isconverted to roompage with room creation or join just like before and new home page will be the login/signup page. Make appropirate new pages and redirections.   
+
+3. Convert the home page into a panel with side by side components, login and rules. Use RulesSection.tsx and RulesData.ts for reference and panel.tsx for side by side panel implementation for HomePage. Follow the renders/. and implement the same homepage style, color and font for buttons, background and everything. Adapt the font and style of renders/. and implement it directly copy every style as it is for buttons, background. Don't delete unused.
+

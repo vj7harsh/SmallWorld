@@ -70,7 +70,7 @@ export function handleMessage(ws, data, broadcast) {
  * @param {Object} data - Message data
  * @param {Function} broadcast - Broadcast function
  */
-function handleCreate(ws, data, broadcast) {
+async function handleCreate(ws, data, broadcast) {
   const { roomId, playerName } = data;
 
   // Validate player name is provided
@@ -83,8 +83,8 @@ function handleCreate(ws, data, broadcast) {
     return;
   }
 
-  // Create the room (or join if it already exists)
-  const assignedRoomId = createRoom(roomId, playerName);
+  // Create the room (or join if it already exists) - now async to fetch host from DB
+  const assignedRoomId = await createRoom(roomId, playerName);
 
   // Store room and player info on the WebSocket connection for later use
   ws.roomId = assignedRoomId;
@@ -109,7 +109,7 @@ function handleCreate(ws, data, broadcast) {
  * @param {Object} data - Message data
  * @param {Function} broadcast - Broadcast function
  */
-function handleJoin(ws, data, broadcast) {
+async function handleJoin(ws, data, broadcast) {
   const { roomId, playerName } = data;
 
   // Validate player name
@@ -132,8 +132,8 @@ function handleJoin(ws, data, broadcast) {
     return;
   }
 
-  // Attempt to join the room
-  const result = joinRoom(roomId, playerName);
+  // Attempt to join the room - now async to fetch host from DB
+  const result = await joinRoom(roomId, playerName);
 
   // Check for errors (e.g., game already started)
   if (result.error) {

@@ -1,113 +1,65 @@
 /**
- * Home Page Component
+ * Room Page Component
  *
- * The landing page of the SmallWorld application where players can:
- * 1. Enter their name
- * 2. Create a new game (becoming the host)
- * 3. Join an existing game using a room code
+ * The page where authenticated users can create or join games.
+ * Shows the logged-in user's info and provides game management options.
  *
- * Flow:
- * - User enters their name (required for both create and join)
- * - To create: Click "Create New Game" -> API creates player and game -> redirects to lobby as host
- * - To join: Enter room code and click "Join Game" -> API creates player and validates room -> redirects to lobby as player
- *
- * API Calls:
- * - POST /players: Create a new player with the given name
- * - POST /games: Create a new game room
- * - POST /games/:id/join: Join an existing game room
+ * Features:
+ * - Display current user info
+ * - Create new game button
+ * - Join existing game with room code
+ * - Logout option
  */
 
 import { useState } from 'react';
 import { API_URL } from '../config';
 import { Panel } from '../components/ui/panel';
 import { RulesSection } from '../components/RulesSection';
+import type { User } from '../types';
 
-/**
- * Props for the HomePage component
- */
-interface HomePageProps {
-  /** Callback when a game is successfully created */
-  onGameCreated: (roomId: string, playerName: string, playerId: string) => void;
-  /** Callback when a game is successfully joined */
-  onGameJoined: (roomId: string, playerName: string, playerId: string) => void;
+interface RoomPageProps {
+  /** Currently logged-in user */
+  user: User;
+  /** Callback when a game is created */
+  onGameCreated: (roomId: string) => void;
+  /** Callback when a game is joined */
+  onGameJoined: (roomId: string) => void;
+  /** Callback to logout */
+  onLogout: () => void;
 }
 
-/**
- * HomePage - Landing page for creating or joining games
- *
- * @param props - Component props containing callback functions
- * @returns The rendered home page component
- */
-export default function HomePage({ onGameCreated, onGameJoined }: HomePageProps) {
-  /** The player's chosen display name */
-  const [playerName, setPlayerName] = useState('');
-
+export default function RoomPage({ user, onGameCreated, onGameJoined, onLogout }: RoomPageProps) {
   /** Room code for joining an existing game */
   const [roomCode, setRoomCode] = useState('');
 
-  /** Error message to display (null when no error) */
+  /** Error message to display */
   const [error, setError] = useState<string | null>(null);
 
   /** Loading state to disable buttons during API calls */
   const [loading, setLoading] = useState(false);
 
   /**
-   * Create a new player via the REST API
-   * Called before both creating and joining games
-   *
-   * @param name - The player's display name
-   * @returns The generated player UUID
-   * @throws Error if the API call fails
-   */
-  const createPlayer = async (name: string): Promise<string> => {
-    const res = await fetch(`${API_URL}/players`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ player_name: name }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to create player');
-    }
-
-    const data = await res.json();
-    return data.player_id;
-  };
-
-  /**
    * Handle "Create New Game" button click
-   *
-   * Steps:
-   * 1. Create a player with the entered name
-   * 2. Create a new game room with the player as host
-   * 3. Call onGameCreated callback to navigate to lobby
+   * Creates a game using the authenticated user
    */
   const handleCreate = async () => {
-    // Validate player name is not empty
-    if (!playerName.trim()) return;
-
     setLoading(true);
     setError(null);
 
     try {
-      // Step 1: Create player
-      const playerId = await createPlayer(playerName.trim());
-
-      // Step 2: Create game
       const res = await fetch(`${API_URL}/games`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player_id: playerId }),
+        credentials: 'include', // Include session cookie
       });
 
       if (!res.ok) {
-        throw new Error('Failed to create game');
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to create game');
       }
 
-      // Step 3: Navigate to lobby
       const data = await res.json();
-      onGameCreated(data.game_id, playerName.trim(), playerId);
+      onGameCreated(data.game_id);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create game');
     } finally {
@@ -117,37 +69,27 @@ export default function HomePage({ onGameCreated, onGameJoined }: HomePageProps)
 
   /**
    * Handle "Join Game" button click
-   *
-   * Steps:
-   * 1. Create a player with the entered name
-   * 2. Join the game room using the provided room code
-   * 3. Call onGameJoined callback to navigate to lobby
+   * Joins a game using the room code
    */
   const handleJoin = async () => {
-    // Validate both player name and room code are provided
-    if (!playerName.trim() || !roomCode.trim()) return;
+    if (!roomCode.trim()) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      // Step 1: Create player
-      const playerId = await createPlayer(playerName.trim());
-
-      // Step 2: Join game (room code is case-sensitive as it's a UUID)
       const res = await fetch(`${API_URL}/games/${roomCode.trim()}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player_id: playerId }),
+        credentials: 'include', // Include session cookie
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to join game');
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to join game');
       }
 
-      // Step 3: Navigate to lobby
-      onGameJoined(roomCode.trim(), playerName.trim(), playerId);
+      onGameJoined(roomCode.trim());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to join game');
     } finally {
@@ -174,13 +116,36 @@ export default function HomePage({ onGameCreated, onGameJoined }: HomePageProps)
       {/* Main content - two column layout */}
       <div className="relative z-10 w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
-        {/* Left Panel - Login/Join */}
+        {/* Left Panel - Game Actions */}
         <Panel
           title="WAR ZONE!"
           subtitle="JOIN THE BATTLE!"
           className="bg-[#F0EAD6] border-4 border-[#2d3436] shadow-[8px_8px_0px_rgba(0,0,0,0.3)] transform rotate-[-0.5deg]"
           bodyClassName="pt-4"
         >
+          {/* User info header */}
+          <div
+            className="flex items-center justify-between mb-4 pb-4"
+            style={{ borderBottom: '2px solid #2d3436' }}
+          >
+            <div>
+              <p className="text-lg" style={{ color: '#2d3436' }}>
+                SOLDIER: <span className="font-bold">{user.playerName}</span>
+              </p>
+            </div>
+            <button
+              onClick={onLogout}
+              disabled={loading}
+              className="text-base transition-all"
+              style={{
+                color: '#ff6b35',
+                textDecoration: 'underline',
+              }}
+            >
+              LOGOUT
+            </button>
+          </div>
+
           {/* Error display */}
           {error && (
             <div
@@ -196,35 +161,10 @@ export default function HomePage({ onGameCreated, onGameJoined }: HomePageProps)
           )}
 
           <div className="space-y-5">
-            {/* Player name input */}
-            <div className="space-y-2">
-              <label
-                className="block text-xl"
-                style={{ color: '#2d3436' }}
-              >
-                SOLDIER NAME:
-              </label>
-              <input
-                type="text"
-                placeholder="Enter callsign"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                disabled={loading}
-                className="w-full px-4 py-3 text-lg outline-none transition"
-                style={{
-                  backgroundColor: 'white',
-                  border: '3px solid #2d3436',
-                  borderRadius: '0.5rem',
-                  color: '#2d3436',
-                  boxShadow: '3px 3px 0px rgba(0,0,0,0.2)',
-                }}
-              />
-            </div>
-
             {/* Create game button */}
             <button
               onClick={handleCreate}
-              disabled={!playerName.trim() || loading}
+              disabled={loading}
               className="w-full py-3 text-2xl tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 backgroundColor: '#ff6b35',
@@ -282,7 +222,7 @@ export default function HomePage({ onGameCreated, onGameJoined }: HomePageProps)
             {/* Join game button */}
             <button
               onClick={handleJoin}
-              disabled={!playerName.trim() || !roomCode.trim() || loading}
+              disabled={!roomCode.trim() || loading}
               className="w-full py-3 text-2xl tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 backgroundColor: '#4a5f3a',
@@ -311,8 +251,8 @@ export default function HomePage({ onGameCreated, onGameJoined }: HomePageProps)
         <Panel
           title="RULES OF WAR"
           subtitle="KNOW YOUR BATTLEFIELD"
-          className="bg-[#F0EAD6] border-4 border-[#2d3436] shadow-[8px_8px_0px_rgba(0,0,0,0.3)] transform rotate-[0.5deg] max-h-[80vh] flex flex-col"
-          bodyClassName="overflow-y-auto flex-1"
+          className="bg-[#F0EAD6] border-4 border-[#2d3436] shadow-[8px_8px_0px_rgba(0,0,0,0.3)] transform rotate-[0.5deg]"
+          bodyClassName="max-h-[60vh] overflow-y-auto"
         >
           <RulesSection embedded />
         </Panel>

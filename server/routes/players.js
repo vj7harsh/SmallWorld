@@ -2,68 +2,58 @@
  * Player Routes
  *
  * REST API endpoints for player management.
- * Handles player creation and status updates via PostgreSQL database.
+ * All endpoints require authentication.
  *
  * Endpoints:
- * - POST /players - Create a new player with a name
- * - PATCH /players/:player_id/ready - Update a player's ready status
- *
- * Note: These endpoints interact with the database for persistent storage.
- * Real-time player state in rooms is managed separately by roomManager.js
- * and communicated via WebSocket.
+ * - GET /players/me - Get current player info
+ * - PATCH /players/ready - Update player's ready status
  */
 
 import { Router } from 'express';
 import { pool } from '../db.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
+// All player routes require authentication
+router.use(requireAuth);
+
 /**
- * POST /players
+ * GET /players/me
  *
- * Create a new player in the database.
- * Called when a user enters their name on the home page before
- * creating or joining a game.
- *
- * Request Body:
- * - player_name: string (required) - The display name for the player
+ * Get the authenticated player's information.
  *
  * Response:
- * - 201: { player_id: UUID, player_name: string }
- * - 400: { error: 'player_name is required' }
- * - 500: { error: 'Failed to create player' }
+ * - 200: { player_id, username, player_name, player_status, score }
+ * - 401: { error: 'Authentication required' }
+ * - 404: { error: 'Player not found' }
+ * - 500: { error: 'Failed to fetch player' }
  */
-router.post('/', async (req, res) => {
+router.get('/me', async (req, res) => {
   try {
-    const { player_name } = req.body;
+    const player_id = req.session.user.playerId;
 
-    // Validate player name is provided
-    if (!player_name) {
-      return res.status(400).json({ error: 'player_name is required' });
-    }
-
-    // Insert new player into database, returning the generated UUID
     const result = await pool.query(
-      `INSERT INTO players (player_name) VALUES ($1) RETURNING player_id, player_name`,
-      [player_name]
+      `SELECT player_id, username, player_name, player_status, score, current_game_id
+       FROM players WHERE player_id = $1`,
+      [player_id]
     );
 
-    res.status(201).json(result.rows[0]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    res.json(result.rows[0]);
   } catch (err) {
-    console.error('Error creating player:', err);
-    res.status(500).json({ error: 'Failed to create player' });
+    console.error('Error fetching player:', err);
+    res.status(500).json({ error: 'Failed to fetch player' });
   }
 });
 
 /**
- * PATCH /players/:player_id/ready
+ * PATCH /players/ready
  *
- * Update a player's ready status in the database.
- * Note: This is separate from the WebSocket-based ready status
- * which is managed in roomManager.js for real-time updates.
- *
- * Request Params:
- * - player_id: UUID - The player's unique identifier
+ * Update the authenticated player's ready status.
  *
  * Request Body:
  * - ready: boolean (required) - Whether the player is ready
@@ -71,12 +61,13 @@ router.post('/', async (req, res) => {
  * Response:
  * - 200: { player_id, player_name, player_status }
  * - 400: { error: 'ready must be a boolean' }
+ * - 401: { error: 'Authentication required' }
  * - 404: { error: 'Player not found' }
  * - 500: { error: 'Failed to update player status' }
  */
-router.patch('/:player_id/ready', async (req, res) => {
+router.patch('/ready', async (req, res) => {
   try {
-    const { player_id } = req.params;
+    const player_id = req.session.user.playerId;
     const { ready } = req.body;
 
     // Validate ready is a boolean

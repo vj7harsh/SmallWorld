@@ -10,7 +10,9 @@
 
 import express from 'express';
 import cors from 'cors';
+import session from 'express-session';
 import { config } from './config.js';
+import authRoutes from './routes/auth.js';
 import playerRoutes from './routes/players.js';
 import gameRoutes from './routes/games.js';
 import { createWebSocketServer } from './websocket/index.js';
@@ -19,14 +21,33 @@ import { createWebSocketServer } from './websocket/index.js';
 const app = express();
 
 // Enable CORS for cross-origin requests from the client
-app.use(cors());
+// credentials: true allows cookies to be sent cross-origin
+app.use(cors({
+  origin: 'http://localhost:5173',  // Vite dev server
+  credentials: true,                 // Allow cookies
+}));
 
 // Parse JSON request bodies
 app.use(express.json());
 
+// Session middleware for authentication
+// Uses in-memory store (sessions lost on server restart)
+app.use(session({
+  secret: 'smallworld-secret-key',  // Secret for signing session ID cookie
+  resave: false,                     // Don't save session if unmodified
+  saveUninitialized: false,          // Don't create session until something stored
+  cookie: {
+    secure: false,                   // Set to true in production with HTTPS
+    httpOnly: true,                  // Prevent client-side JS access to cookie
+    maxAge: 24 * 60 * 60 * 1000,     // 24 hours
+    sameSite: 'lax',                 // Protect against CSRF
+  },
+}));
+
 // Mount route handlers
-app.use('/players', playerRoutes);  // Player management endpoints
-app.use('/games', gameRoutes);      // Game/room management endpoints
+app.use('/auth', authRoutes);        // Authentication endpoints
+app.use('/players', playerRoutes);   // Player management endpoints
+app.use('/games', gameRoutes);       // Game/room management endpoints
 
 /**
  * Health check endpoint

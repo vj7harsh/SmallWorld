@@ -2,30 +2,33 @@
  * App.tsx - Main Application Component
  *
  * This is the root component that handles:
- * - URL-based routing (home, lobby, game pages)
- * - Session management (persisted to sessionStorage)
+ * - Authentication state management
+ * - URL-based routing (auth, rooms, lobby, game pages)
  * - Navigation between pages
- * - Passing callbacks to child components
  *
  * Routes:
- * - / or /home → HomePage (create/join game)
+ * - / → AuthPage (login/signup) if not logged in
+ * - /rooms → RoomPage (create/join game) if logged in
  * - /lobby?room=<id> → LobbyPage (waiting room, map config)
  * - /game?room=<id> → GamePage (active gameplay)
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSession } from './hooks/useSession';
-import HomePage from './pages/HomePage';
+import { useAuth } from './hooks/useAuth';
+import AuthPage from './pages/AuthPage';
+import RoomPage from './pages/RoomPage';
 import LobbyPage from './pages/LobbyPage';
 import GamePage from './pages/GamePage';
-import type { MapConfig } from './types';
+import type { MapConfig, GameSession } from './types';
 
 // Possible routes in the application
-type Route = 'home' | 'lobby' | 'game';
+type Route = 'auth' | 'rooms' | 'lobby' | 'game';
+
+// Session storage key for game session
+const GAME_SESSION_KEY = 'smallworld_game_session';
 
 /**
  * Parse the current URL to determine which route/page to show
- * @returns Object with route name and optional roomId from query params
  */
 function getRouteFromURL(): { route: Route; roomId?: string } {
   const { pathname, search } = window.location;
@@ -34,12 +37,39 @@ function getRouteFromURL(): { route: Route; roomId?: string } {
 
   if (pathname.startsWith('/lobby')) return { route: 'lobby', roomId };
   if (pathname.startsWith('/game')) return { route: 'game', roomId };
-  return { route: 'home' };
+  if (pathname.startsWith('/rooms')) return { route: 'rooms' };
+  return { route: 'auth' };
+}
+
+/**
+ * Load game session from sessionStorage
+ */
+function loadGameSession(): GameSession | null {
+  try {
+    const stored = sessionStorage.getItem(GAME_SESSION_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save game session to sessionStorage
+ */
+function saveGameSession(session: GameSession | null) {
+  if (session) {
+    sessionStorage.setItem(GAME_SESSION_KEY, JSON.stringify(session));
+  } else {
+    sessionStorage.removeItem(GAME_SESSION_KEY);
+  }
 }
 
 function App() {
-  // Session hook manages player credentials in sessionStorage
-  const { session, setSession, clearSession } = useSession();
+  // Authentication hook
+  const { user, loading: authLoading, error: authError, login, signup, logout, clearError } = useAuth();
+
+  // Game session (persists room ID)
+  const [gameSession, setGameSession] = useState<GameSession | null>(() => loadGameSession());
 
   // Current route/page being displayed
   const [route, setRoute] = useState<Route>(() => getRouteFromURL().route);
@@ -51,8 +81,15 @@ function App() {
   const [mapConfig, setMapConfig] = useState<MapConfig | null>(null);
 
   /**
+   * Update game session and persist to sessionStorage
+   */
+  const updateGameSession = useCallback((session: GameSession | null) => {
+    setGameSession(session);
+    saveGameSession(session);
+  }, []);
+
+  /**
    * Handle browser back/forward navigation
-   * Updates route state when user clicks browser nav buttons
    */
   useEffect(() => {
     const handlePopState = () => {
@@ -66,18 +103,16 @@ function App() {
 
   /**
    * Navigate to a new route
-   * Updates browser URL and internal route state
-   *
-   * @param newRoute - The route to navigate to
-   * @param roomId - Optional room ID to include in URL query params
    */
   const navigate = useCallback((newRoute: Route, roomId?: string) => {
     let url = '/';
-    if (newRoute === 'lobby' && roomId) {
+    if (newRoute === 'rooms') {
+      url = '/rooms';
+    } else if (newRoute === 'lobby' && roomId) {
       url = `/lobby?room=${encodeURIComponent(roomId)}`;
     } else if (newRoute === 'game' && roomId) {
       url = `/game?room=${encodeURIComponent(roomId)}`;
-    } else if (newRoute === 'home') {
+    } else if (newRoute === 'auth') {
       url = '/';
     }
 
@@ -87,95 +122,114 @@ function App() {
 
   /**
    * Callback when a new game is created
-   * Called from HomePage after REST API creates the game
-   * Saves session and navigates to lobby as host
-   *
-   * @param roomId - The UUID of the created game
-   * @param playerName - The player's display name
-   * @param playerId - The player's UUID from database
    */
-  const handleGameCreated = useCallback(
-    (roomId: string, playerName: string, playerId: string) => {
-      setSession({ roomId, playerName, playerId });
-      setMode('create');  // Host uses 'create' WebSocket message
-      navigate('lobby', roomId);
-    },
-    [setSession, navigate]
-  );
+  const handleGameCreated = useCallback((roomId: string) => {
+    updateGameSession({ roomId });
+    setMode('create');
+    navigate('lobby', roomId);
+  }, [updateGameSession, navigate]);
 
   /**
    * Callback when joining an existing game
-   * Called from HomePage after REST API confirms join
-   * Saves session and navigates to lobby as non-host
-   *
-   * @param roomId - The UUID of the game to join
-   * @param playerName - The player's display name
-   * @param playerId - The player's UUID from database
    */
-  const handleGameJoined = useCallback(
-    (roomId: string, playerName: string, playerId: string) => {
-      setSession({ roomId, playerName, playerId });
-      setMode('join');  // Non-host uses 'join' WebSocket message
-      navigate('lobby', roomId);
-    },
-    [setSession, navigate]
-  );
+  const handleGameJoined = useCallback((roomId: string) => {
+    updateGameSession({ roomId });
+    setMode('join');
+    navigate('lobby', roomId);
+  }, [updateGameSession, navigate]);
 
   /**
    * Callback when the game starts
-   * Called from LobbyPage when host clicks start and game begins
-   * Saves map config and navigates to game page
-   *
-   * @param map - The finalized map configuration
    */
-  const handleGameStart = useCallback(
-    (map: MapConfig) => {
-      setMapConfig(map);
-      if (session?.roomId) {
-        navigate('game', session.roomId);
-      }
-    },
-    [session, navigate]
-  );
+  const handleGameStart = useCallback((map: MapConfig) => {
+    setMapConfig(map);
+    if (gameSession?.roomId) {
+      navigate('game', gameSession.roomId);
+    }
+  }, [gameSession, navigate]);
 
   /**
    * Callback when player leaves the game
-   * Clears session and returns to home page
    */
   const handleLeave = useCallback(() => {
-    clearSession();
+    updateGameSession(null);
     setMapConfig(null);
-    navigate('home');
-  }, [clearSession, navigate]);
+    navigate('rooms');
+  }, [updateGameSession, navigate]);
 
   /**
-   * Auto-restore session on page load/refresh
-   * If user has a valid session and is on a game route, stay there
-   * If no session but on game route, redirect to home
+   * Handle logout
+   */
+  const handleLogout = useCallback(async () => {
+    await logout();
+    updateGameSession(null);
+    setMapConfig(null);
+    navigate('auth');
+  }, [logout, updateGameSession, navigate]);
+
+  /**
+   * Redirect based on auth state and URL
    */
   useEffect(() => {
-    const { route: urlRoute } = getRouteFromURL();
+    if (authLoading) return; // Wait for auth check to complete
 
-    if (session && (urlRoute === 'lobby' || urlRoute === 'game')) {
-      // Have session, stay on current game route
-      setRoute(urlRoute);
-      // Use 'join' mode when restoring (reconnecting to existing room)
-      setMode('join');
-    } else if (!session && urlRoute !== 'home') {
-      // No session but trying to access game route, redirect to home
-      navigate('home');
+    const { route: urlRoute, roomId } = getRouteFromURL();
+
+    if (!user) {
+      // Not logged in - redirect to auth page
+      if (urlRoute !== 'auth') {
+        navigate('auth');
+      }
+    } else {
+      // Logged in
+      if (urlRoute === 'auth') {
+        // On auth page but logged in - go to rooms
+        navigate('rooms');
+      } else if ((urlRoute === 'lobby' || urlRoute === 'game') && roomId) {
+        // On game route - restore game session
+        if (!gameSession || gameSession.roomId !== roomId) {
+          updateGameSession({ roomId });
+          setMode('join'); // Reconnecting uses 'join' mode
+        }
+        setRoute(urlRoute);
+      } else if (urlRoute === 'rooms') {
+        setRoute('rooms');
+      }
     }
-  }, []); // Only run once on mount
+  }, [user, authLoading]); // Only run when auth state changes
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
 
   // ==================== RENDER ====================
 
+  // Not logged in - show auth page
+  if (!user) {
+    return (
+      <AuthPage
+        onLogin={login}
+        onSignup={signup}
+        error={authError}
+        onClearError={clearError}
+      />
+    );
+  }
+
+  // Logged in - show appropriate page based on route
+
   // Render Lobby Page
-  if (route === 'lobby' && session) {
+  if (route === 'lobby' && gameSession) {
     return (
       <LobbyPage
-        roomId={session.roomId}
-        playerName={session.playerName}
-        playerId={session.playerId}
+        roomId={gameSession.roomId}
+        playerName={user.playerName}
+        playerId={user.playerId}
         mode={mode}
         onGameStart={handleGameStart}
         onLeave={handleLeave}
@@ -184,12 +238,12 @@ function App() {
   }
 
   // Render Game Page (only if we have map config)
-  if (route === 'game' && session && mapConfig) {
+  if (route === 'game' && gameSession && mapConfig) {
     return (
       <GamePage
-        roomId={session.roomId}
-        playerName={session.playerName}
-        playerId={session.playerId}
+        roomId={gameSession.roomId}
+        playerName={user.playerName}
+        playerId={user.playerId}
         map={mapConfig}
         onLeave={handleLeave}
       />
@@ -197,14 +251,20 @@ function App() {
   }
 
   // If on game route but no map config, redirect to lobby
-  // This handles page refresh during game (map config is lost)
-  if (route === 'game' && session && !mapConfig) {
-    navigate('lobby', session.roomId);
+  if (route === 'game' && gameSession && !mapConfig) {
+    navigate('lobby', gameSession.roomId);
     return null;
   }
 
-  // Default: show Home Page
-  return <HomePage onGameCreated={handleGameCreated} onGameJoined={handleGameJoined} />;
+  // Default: show Room Page (create/join game)
+  return (
+    <RoomPage
+      user={user}
+      onGameCreated={handleGameCreated}
+      onGameJoined={handleGameJoined}
+      onLogout={handleLogout}
+    />
+  );
 }
 
 export default App;

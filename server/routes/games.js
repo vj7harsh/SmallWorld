@@ -2,7 +2,7 @@
  * Game Routes
  *
  * REST API endpoints for game room management.
- * Handles creating games, joining games, and getting game status.
+ * All endpoints require authentication.
  *
  * Endpoints:
  * - POST /games - Create a new game room
@@ -10,47 +10,39 @@
  * - GET /games/:game_id - Get game details
  * - GET /games/:game_id/status - Get game status with player details
  * - PATCH /games/:game_id/status - Update game status
- *
- * Note: These endpoints persist game data in PostgreSQL.
- * Real-time game state is managed separately by roomManager.js
- * and communicated via WebSocket.
  */
 
 import { Router } from 'express';
 import { pool } from '../db.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
+
+// All game routes require authentication
+router.use(requireAuth);
 
 /**
  * POST /games
  *
  * Create a new game room in the database.
- * The creating player becomes the first member of the game.
- * Called when a user clicks "Create New Game" on the home page.
- *
- * Request Body:
- * - player_id: UUID (required) - The ID of the player creating the game
+ * Uses the authenticated user as the host.
  *
  * Response:
  * - 201: { game_id: UUID, message: 'Game room created successfully.' }
- * - 400: { error: 'player_id is required' }
+ * - 401: { error: 'Authentication required' }
  * - 500: { error: 'Failed to create game room' }
  */
 router.post('/', async (req, res) => {
   try {
-    const { player_id } = req.body;
+    // Get player_id from authenticated session
+    const player_id = req.session.user.playerId;
 
-    // Validate player_id is provided
-    if (!player_id) {
-      return res.status(400).json({ error: 'player_id is required' });
-    }
-
-    // Create the game with the player as the first member
+    // Create the game with the player as the first member and host
     const gameResult = await pool.query(
-      `INSERT INTO games (players_list, game_status)
-       VALUES ($1::jsonb, 'waiting')
-       RETURNING game_id, created_on`,
-      [JSON.stringify([player_id])]
+      `INSERT INTO games (host_id, players_list, game_status)
+       VALUES ($1, $2::jsonb, 'waiting')
+       RETURNING game_id, host_id, created_on`,
+      [player_id, JSON.stringify([player_id])]
     );
 
     const game = gameResult.rows[0];
@@ -76,30 +68,23 @@ router.post('/', async (req, res) => {
  * POST /games/:game_id/join
  *
  * Join an existing game room.
- * Adds the player to the game's players list if the game is still waiting.
- * Called when a user enters a room code and clicks "Join Game".
+ * Uses the authenticated user to join the game.
  *
  * Request Params:
  * - game_id: UUID - The game room ID to join
  *
- * Request Body:
- * - player_id: UUID (required) - The ID of the player joining
- *
  * Response:
  * - 200: { message: 'Joined game room successfully.' }
- * - 400: { error: 'player_id is required' } or { error: 'Game has already started' }
+ * - 400: { error: 'Game has already started' }
+ * - 401: { error: 'Authentication required' }
  * - 404: { error: 'Game room not found' }
  * - 500: { error: 'Failed to join game room' }
  */
 router.post('/:game_id/join', async (req, res) => {
   try {
     const { game_id } = req.params;
-    const { player_id } = req.body;
-
-    // Validate player_id is provided
-    if (!player_id) {
-      return res.status(400).json({ error: 'player_id is required' });
-    }
+    // Get player_id from authenticated session
+    const player_id = req.session.user.playerId;
 
     // Check if game exists and is in 'waiting' status
     const gameResult = await pool.query(
@@ -150,13 +135,13 @@ router.post('/:game_id/join', async (req, res) => {
  * GET /games/:game_id
  *
  * Get basic game details from the database.
- * Returns the raw game record without player details.
  *
  * Request Params:
  * - game_id: UUID - The game room ID
  *
  * Response:
  * - 200: Full game record from database
+ * - 401: { error: 'Authentication required' }
  * - 404: { error: 'Game not found' }
  * - 500: { error: 'Failed to fetch game' }
  */
@@ -184,21 +169,13 @@ router.get('/:game_id', async (req, res) => {
  * GET /games/:game_id/status
  *
  * Get game status with full player details.
- * Joins game data with player data to provide complete information
- * about all players in the game.
  *
  * Request Params:
  * - game_id: UUID - The game room ID
  *
  * Response:
- * - 200: {
- *     game_id: UUID,
- *     game_status: string,
- *     player_count: number,
- *     players: Array<{player_id, player_name, player_status, score}>,
- *     created_on: timestamp,
- *     last_updated: timestamp
- *   }
+ * - 200: Game status with player details
+ * - 401: { error: 'Authentication required' }
  * - 404: { error: 'Game not found' }
  * - 500: { error: 'Failed to fetch game status' }
  */
@@ -206,9 +183,12 @@ router.get('/:game_id/status', async (req, res) => {
   try {
     const { game_id } = req.params;
 
-    // Get game details
+    // Get game details including host
     const gameResult = await pool.query(
-      `SELECT * FROM games WHERE game_id = $1`,
+      `SELECT g.*, p.player_name as host_name
+       FROM games g
+       LEFT JOIN players p ON g.host_id = p.player_id
+       WHERE g.game_id = $1`,
       [game_id]
     );
 
@@ -233,6 +213,8 @@ router.get('/:game_id/status', async (req, res) => {
 
     res.json({
       game_id: game.game_id,
+      host_id: game.host_id,
+      host_name: game.host_name,
       game_status: game.game_status,
       player_count: players.length,
       players: players,
@@ -249,17 +231,17 @@ router.get('/:game_id/status', async (req, res) => {
  * PATCH /games/:game_id/status
  *
  * Update the game's status (e.g., from 'waiting' to 'active').
- * Used when the host starts the game.
  *
  * Request Params:
  * - game_id: UUID - The game room ID
  *
  * Request Body:
- * - status: string (required) - The new game status ('waiting', 'active', 'ended')
+ * - status: string (required) - The new game status
  *
  * Response:
  * - 200: Updated game record
  * - 400: { error: 'status is required' }
+ * - 401: { error: 'Authentication required' }
  * - 404: { error: 'Game not found' }
  * - 500: { error: 'Failed to update game status' }
  */

@@ -1,15 +1,86 @@
 {
-  "fc440666-a139-4d3c-b78a-45f01b8e4dcd": {
-    "players": [],
-    "started": false
-  },
-  "FC440666-A139-4D3C-B78A-45F01B8E4DCD": {
+  "8a02d9d0-30d1-4d84-9dfb-9db96de3f0fa": {
     "players": [
       {
-        "name": "fsdfdsfd",
+        "name": "mbappe",
+        "ready": false
+      },
+      {
+        "name": "valverde",
         "ready": false
       }
     ],
+    "host": "mbappe",
+    "map": {
+      "radius": 14,
+      "density": 0.32,
+      "smooth": 2,
+      "size": 14,
+      "seed": 1768908292949
+    },
+    "started": false
+  },
+  "e9e4416b-3c27-4c6a-9cda-212602cf20b4": {
+    "players": [
+      {
+        "name": "mbappe",
+        "ready": false
+      }
+    ],
+    "host": "mbappe",
+    "started": false
+  },
+  "0e349fb8-24ed-427e-a4e9-03007e343af5": {
+    "players": [
+      {
+        "name": "valverde",
+        "ready": false
+      }
+    ],
+    "host": "valverde",
+    "started": false
+  },
+  "5822d548-cb3c-45e7-bfbc-777e7ba1ad46": {
+    "players": [
+      {
+        "name": "valverde",
+        "ready": false
+      }
+    ],
+    "host": "valverde",
+    "map": {
+      "radius": 7,
+      "density": 0.46,
+      "smooth": 2,
+      "size": 24,
+      "seed": 1768911440530
+    },
+    "started": false
+  },
+  "706ce5ed-720f-4a48-9c5e-3497e1fa775c": {
+    "players": [
+      {
+        "name": "mbappe",
+        "ready": false
+      },
+      {
+        "name": "valverde",
+        "ready": false
+      }
+    ],
+    "host": "valverde",
+    "map": {
+      "radius": 14,
+      "density": 0.67,
+      "smooth": 2,
+      "size": 24,
+      "seed": 1768911851521
+    },
+    "started": false
+  },
+  "71c65ccb-7e64-4fd3-8324-96a43781df90": {
+    "players": [],
+    "host": "valverde",
     "started": false
   }
 }

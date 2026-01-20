@@ -62,16 +62,26 @@ export type RoomState = {
 };
 
 /**
- * Session
+ * User
  *
- * Client-side session data stored in sessionStorage.
- * Persists across page refreshes within the same browser session.
+ * Authenticated user data from the server session.
  */
-export type Session = {
+export type User = {
   /** UUID of the player from the database */
   playerId: string;
-  /** Display name chosen by the player */
+  /** Unique username for login */
+  username: string;
+  /** Display name for the player */
   playerName: string;
+};
+
+/**
+ * GameSession
+ *
+ * Client-side game session data stored in sessionStorage.
+ * Persists across page refreshes within the same browser session.
+ */
+export type GameSession = {
   /** Room ID the player is currently in */
   roomId: string;
 };

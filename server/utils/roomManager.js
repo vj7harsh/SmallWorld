@@ -17,6 +17,7 @@
 import fs from 'fs';
 import path from 'path';
 import { config } from '../config.js';
+import { pool } from '../db.js';
 
 // Path to the JSON file where room state is persisted
 const DATA_PATH = path.resolve(process.cwd(), config.roomsFile);
@@ -98,15 +99,39 @@ export function getAllRooms() {
 }
 
 /**
+ * Fetch the host name for a game from the database
+ * This is the authoritative source for who the host is
+ *
+ * @param {string} roomId - The game/room ID (UUID)
+ * @returns {Promise<string|null>} The host's player name, or null if not found
+ */
+async function getHostFromDB(roomId) {
+  try {
+    const result = await pool.query(
+      `SELECT p.player_name
+       FROM games g
+       JOIN players p ON g.host_id = p.player_id
+       WHERE g.game_id = $1`,
+      [roomId]
+    );
+    return result.rows[0]?.player_name || null;
+  } catch (e) {
+    console.error('Failed to fetch host from DB:', e.message);
+    return null;
+  }
+}
+
+/**
  * Create a new room or join an existing one as the creator/host
  * Called when a player creates a new game
+ * Fetches the host from the database to ensure consistency
  *
  * @param {string|null} roomId - Room ID (UUID from REST API) or null to generate one
  * @param {string} playerName - Name of the player creating the room
  * @param {string} playerId - UUID of the player (from REST API)
- * @returns {string} The room ID (provided or generated)
+ * @returns {Promise<string>} The room ID (provided or generated)
  */
-export function createRoom(roomId = null, playerName, playerId) {
+export async function createRoom(roomId = null, playerName, playerId) {
   // Generate unique ID if not provided (fallback for non-REST API usage)
   if (!roomId) {
     do {
@@ -114,21 +139,24 @@ export function createRoom(roomId = null, playerName, playerId) {
     } while (rooms[roomId]);
   }
 
+  // Fetch the host from the database (authoritative source)
+  const dbHost = await getHostFromDB(roomId);
+
   // If room already exists (created via REST API), add player to it
   if (rooms[roomId]) {
     // Add player if not already present
     if (!rooms[roomId].players.find((p) => p.name === playerName)) {
       rooms[roomId].players.push({ name: playerName, race: undefined, ready: false });
     }
-    // Set as host if no host exists
-    if (!rooms[roomId].host) {
-      rooms[roomId].host = playerName;
+    // Always use host from database if available
+    if (dbHost) {
+      rooms[roomId].host = dbHost;
     }
   } else {
-    // Create a brand new room with this player as host
+    // Create a brand new room - use DB host or fallback to playerName
     rooms[roomId] = {
       players: [{ name: playerName, race: undefined, ready: false }],
-      host: playerName,
+      host: dbHost || playerName,
       map: undefined,
       started: false,
     };
@@ -141,19 +169,29 @@ export function createRoom(roomId = null, playerName, playerId) {
 /**
  * Join an existing room as a non-host player
  * Called when a player joins a game created by someone else
+ * Fetches the host from the database to ensure consistency
  *
  * @param {string} roomId - The room ID to join
  * @param {string} playerName - Name of the joining player
- * @returns {Object} Success object or error object with code and message
+ * @returns {Promise<Object>} Success object or error object with code and message
  */
-export function joinRoom(roomId, playerName) {
+export async function joinRoom(roomId, playerName) {
+  // Fetch the host from the database (authoritative source)
+  const dbHost = await getHostFromDB(roomId);
+
   // Create empty room if it doesn't exist in WebSocket memory
   // (REST API has already validated the room exists in the database)
   if (!rooms[roomId]) {
-    rooms[roomId] = { players: [], host: undefined, map: undefined, started: false };
+    rooms[roomId] = { players: [], host: dbHost, map: undefined, started: false };
   }
 
   const room = rooms[roomId];
+
+  // Always sync host from database
+  if (dbHost) {
+    room.host = dbHost;
+  }
+
   const existingPlayer = room.players.find((p) => p.name === playerName);
 
   // If game has started, only allow rejoining for existing players
@@ -166,9 +204,6 @@ export function joinRoom(roomId, playerName) {
   if (!existingPlayer) {
     room.players.push({ name: playerName, race: undefined, ready: false });
   }
-
-  // NOTE: Don't assign host here - only createRoom should set the host
-  // This prevents joiners from accidentally becoming host
 
   persistRooms();
   return { success: true };
@@ -261,6 +296,7 @@ export function startGame(roomId, playerName) {
  * Remove a player from a room
  * Called when a player disconnects (closes browser/tab)
  * Only removes player if game hasn't started (to allow reconnection during game)
+ * NOTE: Host is never reassigned - it's stored in the database and remains constant
  *
  * @param {string} roomId - The room ID
  * @param {string} playerName - Name of the player to remove
@@ -278,10 +314,8 @@ export function removePlayer(roomId, playerName) {
   // Remove the player from the players array
   room.players = room.players.filter((p) => p.name !== playerName);
 
-  // If the removed player was host, assign a new host
-  if (room.host === playerName) {
-    room.host = room.players[0]?.name;  // First remaining player becomes host
-  }
+  // NOTE: Host is stored in the database and never changes
+  // Even if the host leaves, they remain the host if they rejoin
 
   persistRooms();
 }
