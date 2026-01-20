@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# builds
+dist/
+build/
+
+# local renders
+renders/
+
+# env
+.env
+.env.*
+
+# archives / assets
+*.zip
+
+# OS junk
+.DS_Store
