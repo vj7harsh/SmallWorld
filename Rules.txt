@@ -1,0 +1,580 @@
+export type RuleCategory =
+  | "Core Rules"
+  | "Races"
+  | "Special Powers"
+  | "Artifacts"
+  | "Legendary Places";
+
+export type RuleItem = {
+  id: string;
+  category: RuleCategory;
+  name: string;
+  summary?: string;
+  details: string[];
+  tags?: string[];
+};
+
+export const RULES: RuleItem[] = [
+  // -------------------------
+  // Core rules (high-signal)
+  // -------------------------
+  {
+    id: "core-active-vs-decline",
+    category: "Core Rules",
+    name: "Active vs In Decline",
+    summary: "Race powers + Special Power benefits usually stop when you go In Decline.",
+    details: [
+      "Race tokens are face up when Active; face down when In Decline.",
+      "Unless explicitly stated otherwise, Race banner + Special Power benefits apply only while Active (and usually not to your earlier In Decline tokens).",
+      "Murlocs are always considered In Decline.",
+    ],
+    tags: ["decline", "tokens"],
+  },
+  {
+    id: "core-non-empty",
+    category: "Core Rules",
+    name: "What counts as a non-empty Region?",
+    details: [
+      "A Region is non-empty if it contains at least one Murloc or Race token (Active or In Decline).",
+      "A Region with only a Mountain marker and/or an Artifact/Legendary Place (but no Murloc/enemy Race token) is considered empty.",
+    ],
+    tags: ["regions"],
+  },
+  {
+    id: "core-scoring",
+    category: "Core Rules",
+    name: "Scoring at end of turn",
+    details: [
+      "You score 1 Victory Coin per Region you occupy at the end of your turn.",
+      "You may also score bonus Victory Coins from your Race, Special Power, Artifacts, and/or Legendary Places.",
+      "Conquering 2+ Regions belonging to the same Race still grants only 1 Faction bonus (unless stated otherwise, e.g., Battleground).",
+      "An Active Race and an In Decline Race count as two different Races, even if owned by the same player.",
+    ],
+    tags: ["victory coins", "scoring"],
+  },
+  {
+    id: "core-factions",
+    category: "Core Rules",
+    name: "Alliance / Horde / Neutral + Faction Bonus",
+    summary: "Cross-faction attacks can grant bonus VC; Neutral doesn’t.",
+    details: [
+      "Most Races belong to Alliance or Horde; some are Neutral.",
+      "Faction Bonus: when you attack a Race from the opposite faction and take Regions from them, you score 1 Victory Coin for each opposite-faction Race you defeated (at end of your turn).",
+      "Neutral Races don’t get a faction bonus for conquering Alliance/Horde, and Alliance/Horde don’t get a faction bonus for conquering Neutral.",
+    ],
+    tags: ["alliance", "horde", "neutral"],
+  },
+  {
+    id: "core-artifacts-places-general",
+    category: "Core Rules",
+    name: "Artifacts & Legendary Places (general)",
+    details: [
+      "When you enter a Region with a facedown Artifact/Place marker, reveal it. Once revealed, it stays faceup for the rest of the game.",
+      "If you occupy a Region with an Artifact or Place, you may immediately use its effect.",
+      "Artifacts can be moved (they remain in the Region where they were last used).",
+      "Legendary Places cannot be moved (exception: Well of Eternity relocates to a Sea/Lake on reveal).",
+      "If a Region with a marker is conquered, the marker changes hands and can be used immediately by the new owner.",
+      "If a Region containing an Artifact is abandoned, the Artifact stays in that Region.",
+      "In Decline Races cannot benefit from Artifact/Place effects and bonuses unless explicitly stated otherwise.",
+    ],
+    tags: ["artifacts", "legendary places"],
+  },
+
+  // -------------------------
+  // Races
+  // -------------------------
+  {
+    id: "race-blood-elves",
+    category: "Races",
+    name: "Blood Elves",
+    summary: "Bonus VC for Magic Regions.",
+    details: ["Collect 1 bonus Victory Coin for each Magic Region you occupy at turn’s end."],
+    tags: ["magic", "end of turn"],
+  },
+  {
+    id: "race-draenei",
+    category: "Races",
+    name: "Draenei",
+    summary: "Ignore your first casualty each opponent turn.",
+    details: [
+      "During each opponent’s turn, the first Race token you should discard (from conquest or any kind of power) stays with you to be redeployed normally.",
+      "All following casualties are discarded as usual.",
+    ],
+    tags: ["defense", "casualties"],
+  },
+  {
+    id: "race-dwarves",
+    category: "Races",
+    name: "Dwarves",
+    summary: "Cheaper Mountain conquests.",
+    details: ["May conquer Mountain Regions at a cost of 2 tokens less than normal (minimum 1 token is still required)."],
+    tags: ["mountains"],
+  },
+  {
+    id: "race-ethereals",
+    category: "Races",
+    name: "Ethereals",
+    summary: "Artifact stealing or cheaper Legendary Place conquests.",
+    details: [
+      "Once per turn, you may steal an Artifact from a Region adjacent to one you occupy by moving the Artifact into that adjacent Region (and you may use it immediately).",
+      "OR once per turn you may conquer an adjacent Region containing a Legendary Place at a cost of 2 tokens less than normal (minimum 1 token).",
+    ],
+    tags: ["artifacts", "legendary places"],
+  },
+  {
+    id: "race-forsaken",
+    category: "Races",
+    name: "Forsaken",
+    summary: "Pay VC to gain extra Forsaken tokens after you cause losses.",
+    details: [
+      "Each time you force the loss of a Race token (Active or In Decline), you may spend 1 Victory Coin to gain 1 additional Forsaken Race token.",
+      "You receive these extra tokens after your last conquest of the turn, before redeployment (so they cannot be used for conquests until next turn).",
+    ],
+    tags: ["token gain", "victory coins"],
+  },
+  {
+    id: "race-gnomes",
+    category: "Races",
+    name: "Gnomes",
+    summary: "Once-per-turn airborne assault anywhere + free reinforcement die.",
+    details: [
+      "Once per turn, you can treat any Region on any board as adjacent for an airborne assault.",
+      "Roll a free reinforcement die before the assault to potentially reduce the cost.",
+      "If this airborne assault is your last possible conquest, you may benefit from the reinforcement die roll twice: once for the Gnome ability and once for the normal final conquest attempt.",
+    ],
+    tags: ["mobility", "reinforcement die"],
+  },
+  {
+    id: "race-goblins",
+    category: "Races",
+    name: "Goblins",
+    summary: "Plant bombs in adjacent enemy Active Regions.",
+    details: [
+      "At end of your turn, you may place facedown Bomb tokens in adjacent Regions occupied by opponents’ Active Races (max 1 Bomb per Region).",
+      "At the beginning of your next turn, if the Region is still occupied by an opponent, reveal the Bomb:",
+      "• Explosion: treated like a successful conquest (opponent loses 1 token, redeploys the rest) BUT the Region becomes empty.",
+      "• Miss: no effect.",
+      "If the Region is emptied before your next turn, return the Bomb to the top of the stack (without looking).",
+      "When Goblins go In Decline, Bombs placed at the end of their previous turn still resolve normally.",
+    ],
+    tags: ["bombs", "area control"],
+  },
+  {
+    id: "race-humans",
+    category: "Races",
+    name: "Humans",
+    summary: "Place Military Objectives to reward non-Horde conquests.",
+    details: [
+      "At end of your turn, place 2 Military Objective tokens in up to 2 different non-Alliance Regions.",
+      "If any non-Horde player conquers a Region with a Military Objective: the conqueror earns 2 bonus VC and returns the token to you; you also earn 2 bonus VC if you weren’t the conqueror.",
+      "If any Horde player conquers a Region with a Military Objective: nothing happens and the token stays in the Region.",
+    ],
+    tags: ["objectives", "victory coins"],
+  },
+  {
+    id: "race-kobolds",
+    category: "Races",
+    name: "Kobolds",
+    summary: "Cavern popping + cheaper first entry via Cavern.",
+    details: [
+      "May attack any Cavern Region as though it were adjacent.",
+      "For your first conquest, you may use a Cavern as an Entry Region; if you do, you do not pay the extra +1 travel cost.",
+    ],
+    tags: ["caverns", "mobility"],
+  },
+  {
+    id: "race-naga",
+    category: "Races",
+    name: "Naga",
+    summary: "Can conquer Sea/Lake Regions and start there.",
+    details: [
+      "Unlike other Races, may conquer Sea and Lake Regions.",
+      "Your first conquest may be a Sea or Lake (requiring 2 tokens), then you expand from there.",
+      "Naga remain in Seas and Lakes while In Decline.",
+    ],
+    tags: ["sea", "lake"],
+  },
+  {
+    id: "race-night-elves",
+    category: "Races",
+    name: "Night Elves",
+    summary: "Cheaper Forest conquests + Wisp Walls.",
+    details: [
+      "May conquer Forest Regions at a cost of 1 token less than normal (minimum 1).",
+      "Each time you conquer a Forest, place a Wisp Wall token on it.",
+      "A Wisp Wall counts as 1 token for defense and remains In Decline, but is removed when the Region is conquered or emptied.",
+    ],
+    tags: ["forest", "defense"],
+  },
+  {
+    id: "race-orcs",
+    category: "Races",
+    name: "Orcs",
+    summary: "+1 VC per conquest of an Alliance-occupied Region.",
+    details: [
+      "Each conquest of an Alliance-occupied Region is worth 1 bonus Victory Coin.",
+      "This bonus is cumulative with the normal Faction Bonus.",
+    ],
+    tags: ["horde", "faction bonus"],
+  },
+  {
+    id: "race-pandaren",
+    category: "Races",
+    name: "Pandaren",
+    summary: "Harmony tokens punish opponents who attack you.",
+    details: [
+      "At end of every turn, give a Harmony token to each opponent whose Active Race you did not attack this turn (including the first turn for players without a Race yet).",
+      "A player with a Harmony token must pay you 2 Victory Coins before attacking you (conquering your Regions or forcing removal of your tokens).",
+      "This 2 VC payment happens only once even if they attack several Pandaren Regions.",
+      "You retrieve Harmony tokens at the beginning of each of your turns.",
+    ],
+    tags: ["diplomacy", "tax"],
+  },
+  {
+    id: "race-tauren",
+    category: "Races",
+    name: "Tauren",
+    summary: "Never occupy with <2 tokens; special redeploy + decline rule.",
+    details: [
+      "May never occupy (or conquer) a Region with fewer than 2 Tauren tokens.",
+      "They still lose one token when conquered.",
+      "No Tauren token may be left alone, even during redeployment; if a token would be alone for any reason, redeploy it to a Region you already control.",
+      "When going In Decline, leave 2 tokens in each Region instead of 1.",
+    ],
+    tags: ["constraints", "redeploy"],
+  },
+  {
+    id: "race-trolls",
+    category: "Races",
+    name: "Trolls",
+    summary: "Cheaper conquests into non-empty Regions.",
+    details: ["May conquer any non-empty Region at a cost of 1 token less than normal (minimum 1)."],
+    tags: ["aggressive"],
+  },
+  {
+    id: "race-worgen",
+    category: "Races",
+    name: "Worgen",
+    summary: "Choose Human form (gain VC) or Worgen form (cheaper conquests).",
+    details: [
+      "At the beginning of each of your turns, choose:",
+      "• Human form: immediately gain 2 bonus Victory Coins.",
+      "• Worgen form: pay 1 Victory Coin; all conquests this turn cost 1 token less than normal (minimum 1).",
+    ],
+    tags: ["stance", "economy"],
+  },
+  {
+    id: "race-murlocs",
+    category: "Races",
+    name: "Murlocs (setup note)",
+    summary: "Start on the map and are always In Decline.",
+    details: [
+      "During setup, place a Murloc token on each Region showing a Murloc symbol.",
+      "Murlocs are considered an In Decline Race.",
+    ],
+    tags: ["setup"],
+  },
+
+  // -------------------------
+  // Special Powers
+  // -------------------------
+  {
+    id: "sp-archaeologist",
+    category: "Special Powers",
+    name: "Archaeologist",
+    summary: "Bonus VC for Artifacts and Legendary Places you control.",
+    details: ["Gain 1 bonus Victory Coin for each Artifact and each Legendary Place you control at turn’s end."],
+    tags: ["artifacts", "legendary places"],
+  },
+  {
+    id: "sp-battle-master",
+    category: "Special Powers",
+    name: "Battle Master",
+    summary: "Bonus VC for conquering non-empty Regions.",
+    details: ["Each time you conquer a non-empty Region, collect 1 bonus Victory Coin."],
+    tags: ["combat", "scoring"],
+  },
+  {
+    id: "sp-beast-master",
+    category: "Special Powers",
+    name: "Beast Master",
+    summary: "Convert controlled Hills into temporary Beast tokens.",
+    details: [
+      "At the start of each turn, discard all your Beast tokens, then take a number of Beast tokens equal to the Hill Regions you control.",
+      "Beast tokens are treated like Race tokens for conquering and redeployment.",
+      "When a Region with at least one Beast token is conquered, discard one Beast token as a loss; redeploy all other tokens normally.",
+    ],
+    tags: ["hills", "tokens"],
+  },
+  {
+    id: "sp-blacksmith",
+    category: "Special Powers",
+    name: "Blacksmith",
+    summary: "All conquests cost 1 less.",
+    details: ["May conquer all Regions at a cost of 1 token less than normal (minimum 1)."],
+    tags: ["combat"],
+  },
+  {
+    id: "sp-herbalist",
+    category: "Special Powers",
+    name: "Herbalist",
+    summary: "Bonus VC per Hill Region.",
+    details: ["Collect 1 bonus Victory Coin for each Hill Region you control at turn’s end."],
+    tags: ["hills", "scoring"],
+  },
+  {
+    id: "sp-championing",
+    category: "Special Powers",
+    name: "Championing",
+    summary: "Free conquest once per turn + Champion token defense/ransom.",
+    details: [
+      "Once per turn, conquer one adjacent Region for free (regardless of enemy tokens/defenses).",
+      "Place the Champion token in the conquered Region; it counts as 1 token for defense.",
+      "If an opponent conquers the Champion’s Region, the Champion is taken prisoner: you immediately pay them 1 Victory Coin ransom and retrieve the Champion, then redeploy it like a Race token for use next turn.",
+    ],
+    tags: ["free conquest", "champion"],
+  },
+  {
+    id: "sp-intimidating",
+    category: "Special Powers",
+    name: "Intimidating",
+    summary: "Move enemy tokens (3 times/turn) from neighboring Regions.",
+    details: [
+      "Up to three times per turn, move 1 Race token from an opponent’s neighboring Region to another Region controlled by the same Race (if none exist, discard it).",
+      "Murlocs are always discarded.",
+      "If a Wisp Wall or Fort is present, discard it first (counts as a power use) before moving a token away.",
+      "Must be used before your last conquest of the turn.",
+    ],
+    tags: ["control", "disruption"],
+  },
+  {
+    id: "sp-defensive",
+    category: "Special Powers",
+    name: "Defensive",
+    summary: "Watch Towers can make Regions immune.",
+    details: [
+      "At end of your turn, place a Watch Tower in each Fields Region where you control the majority of adjacent Regions; remove Watch Towers from Fields Regions where you no longer have that majority.",
+      "A Watch Tower makes a Region immune to all powers and conquest attempts.",
+    ],
+    tags: ["fields", "immunity"],
+  },
+  {
+    id: "sp-marshdweller",
+    category: "Special Powers",
+    name: "MarshDweller",
+    summary: "Tax opponents before they conquer your Swamps (even in decline).",
+    details: [
+      "Opponents must pay you 1 Victory Coin before conquering any of your Swamp Regions.",
+      "This power remains active while you are In Decline.",
+    ],
+    tags: ["swamp", "tax"],
+  },
+  {
+    id: "sp-mining",
+    category: "Special Powers",
+    name: "Mining",
+    summary: "Bonus VC per Cavern.",
+    details: ["Collect 1 bonus Victory Coin for each Cavern Region you control at turn’s end."],
+    tags: ["caverns", "scoring"],
+  },
+  {
+    id: "sp-enraged",
+    category: "Special Powers",
+    name: "Enraged",
+    summary: "Bonus VC for beating stacked defenders.",
+    details: [
+      "For each conquest of a Region with at least two defending Race tokens, collect bonus Victory Coins equal to the number of defending tokens.",
+    ],
+    tags: ["combat", "scoring"],
+  },
+  {
+    id: "sp-explorer",
+    category: "Special Powers",
+    name: "Explorer",
+    summary: "Bonus VC per board you occupy.",
+    details: ["Collect 1 bonus Victory Coin for each game board where you occupy at least one Region at turn’s end."],
+    tags: ["multi-board", "scoring"],
+  },
+  {
+    id: "sp-farmer",
+    category: "Special Powers",
+    name: "Farmer",
+    summary: "Bonus VC per Fields Region.",
+    details: ["Collect 1 bonus Victory Coin for each Fields Region you control at turn’s end."],
+    tags: ["fields", "scoring"],
+  },
+  {
+    id: "sp-fishing",
+    category: "Special Powers",
+    name: "Fishing",
+    summary: "Bonus VC for Regions adjacent to Sea/Lake.",
+    details: ["Collect 1 bonus Victory Coin at turn’s end for each Region you control adjacent to a Lake or a Sea."],
+    tags: ["sea", "lake", "scoring"],
+  },
+  {
+    id: "sp-garrisoned",
+    category: "Special Powers",
+    name: "Garrisoned",
+    summary: "Forts add defense and remain in decline.",
+    details: [
+      "Place 1 Fort token in each Region you occupy.",
+      "A Fort increases the Region’s defense by 1 (as if one extra Race token was there) and remains In Decline.",
+      "Discard the Fort if the Region is conquered or emptied.",
+      "Max 1 Fort per Region; max 10 Forts on the boards total.",
+    ],
+    tags: ["forts", "defense"],
+  },
+  {
+    id: "sp-mountaineer",
+    category: "Special Powers",
+    name: "Mountaineer",
+    summary: "Bonus VC per Mountain Region.",
+    details: ["Collect 1 bonus Victory Coin for each Mountain Region you control at turn’s end."],
+    tags: ["mountains", "scoring"],
+  },
+  {
+    id: "sp-portal-mage",
+    category: "Special Powers",
+    name: "Portal Mage",
+    summary: "Swap tokens between two Magic Regions (twice/turn).",
+    details: [
+      "Twice per turn, exchange all tokens between two Magic Regions (excluding Mountain markers and Legendary Place tokens).",
+    ],
+    tags: ["magic", "movement"],
+  },
+  {
+    id: "sp-ranger",
+    category: "Special Powers",
+    name: "Ranger",
+    summary: "Bonus VC per Forest Region.",
+    details: ["Collect 1 bonus Victory Coin for each Forest Region you control at turn’s end."],
+    tags: ["forest", "scoring"],
+  },
+  {
+    id: "sp-sailing",
+    category: "Special Powers",
+    name: "Sailing",
+    summary: "No +1 travel cost for non-adjacent Entry Regions.",
+    details: ["Do not pay the extra +1 travel cost when conquering a non-adjacent Entry Region of a board."],
+    tags: ["entry", "mobility"],
+  },
+  {
+    id: "sp-swamp-walker",
+    category: "Special Powers",
+    name: "Swamp Walker",
+    summary: "Bonus VC per Swamp Region.",
+    details: ["Collect 1 bonus Victory Coin for each Swamp Region you control at turn’s end."],
+    tags: ["swamp", "scoring"],
+  },
+
+  // -------------------------
+  // Artifacts
+  // -------------------------
+  {
+    id: "artifact-heart-of-azeroth",
+    category: "Artifacts",
+    name: "Heart of Azeroth",
+    details: [
+      "At end of your turn, place it in one Region you control.",
+      "Each opponent whose Active Race occupies at least one Region adjacent to it must pay you 1 Victory Coin.",
+    ],
+  },
+  {
+    id: "artifact-aegis",
+    category: "Artifacts",
+    name: "Aegis of Aggramar",
+    details: [
+      "At end of your turn, place it in one Region you control.",
+      "That Region is immune to all powers and conquest attempts unless the opponent pays you 2 Victory Coins.",
+    ],
+  },
+  {
+    id: "artifact-ashes",
+    category: "Artifacts",
+    name: "Ashes of Al’ar",
+    details: [
+      "Once per turn, lets you conquer any Region on any board.",
+      "You still pay the normal conquest cost as if the Region were adjacent.",
+    ],
+  },
+  {
+    id: "artifact-doomhammer",
+    category: "Artifacts",
+    name: "DoomHammer",
+    details: [
+      "Once per turn, you may conquer 1 Region with only 1 token, but must first pay 2 Victory Coins to the previous owner.",
+      "If there is no previous owner, return the 2 VC to the stash.",
+    ],
+  },
+  {
+    id: "artifact-frostmourne",
+    category: "Artifacts",
+    name: "Frostmourne",
+    details: [
+      "Once per turn, conquer a Region at a cost of 2 tokens less than normal (minimum 1).",
+    ],
+  },
+
+  // -------------------------
+  // Legendary Places
+  // -------------------------
+  {
+    id: "place-battleground",
+    category: "Legendary Places",
+    name: "Battleground",
+    details: [
+      "If you occupy it, you may benefit from the Faction Bonus a second time per Race (conquering 2+ Regions of the same opposing-faction Race can grant 2 bonus VC).",
+      "If a Neutral Race occupies it, it can choose to fight alongside Alliance or Horde for that turn and temporarily benefit from the Faction Bonus (and Battleground bonus). Neutral again at end of turn.",
+    ],
+  },
+  {
+    id: "place-dark-portal",
+    category: "Legendary Places",
+    name: "Dark Portal",
+    details: ["The Race controlling the Region with the Dark Portal collects 2 bonus Victory Coins at turn’s end."],
+  },
+  {
+    id: "place-karazhan",
+    category: "Legendary Places",
+    name: "Karazhan",
+    details: [
+      "Gain 1 bonus Victory Coin at turn’s end for all OTHER Regions you control that match the terrain type where Karazhan is located.",
+    ],
+  },
+  {
+    id: "place-lights-hope",
+    category: "Legendary Places",
+    name: "Light’s Hope Chapel",
+    details: [
+      "A Race occupying it does not suffer any Race token loss when attacked.",
+      "When the Region is conquered, the former owner still benefits one last time (does not discard one token when taking tokens back in hand from this attack).",
+    ],
+  },
+  {
+    id: "place-meeting-stone",
+    category: "Legendary Places",
+    name: "Meeting Stone",
+    details: ["A Race controlling it does not pay the +1 cost when conquering a non-adjacent Entry Region."],
+  },
+  {
+    id: "place-spirit-healer",
+    category: "Legendary Places",
+    name: "Spirit Healer",
+    details: [
+      "During redeployment, an Active Race occupying it receives one bonus Race token (if at least one is available in the tray).",
+    ],
+  },
+  {
+    id: "place-well-of-eternity",
+    category: "Legendary Places",
+    name: "Well of Eternity",
+    details: [
+      "When revealed, move it to the Sea or Lake Region on the same board (if none, draw another Place token).",
+      "At end of turn, the Race that occupies more Regions adjacent to it than any other Race gains 2 bonus Victory Coins — even if that Race is In Decline.",
+      "If tied, nobody gains the bonus.",
+    ],
+  },
+];
+
+
+
