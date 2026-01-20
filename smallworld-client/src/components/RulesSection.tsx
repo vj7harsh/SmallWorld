@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { RULES } from "../content/RulesData";
 import type { RuleCategory, RuleItem } from "../content/RulesData";
 

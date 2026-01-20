@@ -58,16 +58,7 @@
     "started": false
   },
   "706ce5ed-720f-4a48-9c5e-3497e1fa775c": {
-    "players": [
-      {
-        "name": "mbappe",
-        "ready": false
-      },
-      {
-        "name": "valverde",
-        "ready": false
-      }
-    ],
+    "players": [],
     "host": "valverde",
     "map": {
       "radius": 14,
